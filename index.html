@@ -3,26 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DataPath — Oficial</title>
+    <title>DataPath — Plataforma Gamificada de Dados</title>
     
-    <!-- Bibliotecas Necessárias -->
+    <!-- Fontes e Estilos -->
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Scripts do React e Babel (Motor do Site) -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap');
+        :root {
+            --bg: #020817;
+            --surface: #0a1628;
+            --card: #0f172a;
+            --border: #1e293b;
+            --accent: #6366f1;
+            --accent2: #8b5cf6;
+            --text: #e2e8f0;
+            --muted: #64748b;
+            --green: #10b981;
+            --yellow: #f59e0b;
+            --red: #ef4444;
+        }
+
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background-color: #020817; color: #e2e8f0; font-family: 'Outfit', sans-serif; overflow-x: hidden; }
+        body { background-color: var(--bg); color: var(--text); font-family: 'Outfit', sans-serif; overflow-x: hidden; }
         #root { min-height: 100vh; }
         
-        /* Scrollbar Personalizada */
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: #020817; }
-        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
-        
-        /* Animações simples */
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .page-enter { animation: fadeIn 0.4s ease-out forwards; }
     </style>
 </head>
 <body>
@@ -31,9 +47,7 @@
     <script type="text/babel">
         const { useState, useEffect, useCallback, useRef, createContext, useContext } = React;
 
-        // ============================================================
-        // SEGURANÇA E BANCO DE DADOS (CÓDIGO ORIGINAL)
-        // ============================================================
+        // ── SEGURANÇA ───────────────────────────────────────────────
         const Security = {
             hashPassword: async (pw) => {
                 const data = new TextEncoder().encode(pw + "dp_salt_x9k2");
@@ -52,9 +66,10 @@
             verifyJWT: (token) => {
                 try { const d = JSON.parse(atob(token.split(".")[1])); return d.exp > Date.now() ? d : null; }
                 catch { return null; }
-            },
+            }
         };
 
+        // ── BANCO DE DADOS (LOCALSTORAGE) ───────────────────────────
         const DB = {
             g: (k) => { try { return JSON.parse(localStorage.getItem("dp_"+k)||"null"); } catch { return null; }},
             s: (k,v) => { try { localStorage.setItem("dp_"+k, JSON.stringify(v)); } catch {} },
@@ -70,7 +85,12 @@
             setResume: (id,r) => DB.s("cv_"+id, r),
             goals: (id) => DB.g("goals_"+id) || [],
             setGoals: (id,g) => DB.s("goals_"+id, g),
-            habits: (id) => DB.g("habits_"+id) || [],
+            habits: (id) => DB.g("habits_"+id) || [
+                {id:1,name:"Estudar Python",streak:0,done:false,color:"#3b82f6"},
+                {id:2,name:"Praticar SQL",streak:0,done:false,color:"#10b981"},
+                {id:3,name:"Inglês técnico",streak:0,done:false,color:"#f59e0b"},
+                {id:4,name:"Revisão do dia",streak:0,done:false,color:"#8b5cf6"},
+            ],
             setHabits: (id,h) => DB.s("habits_"+id, h),
             checklist: (id) => DB.g("check_"+id) || [],
             setChecklist: (id,c) => DB.s("check_"+id, c),
@@ -80,9 +100,7 @@
         const xpForLevel = (lvl) => (lvl-1)*(lvl-1)*100;
         const xpForNext = (lvl) => lvl*lvl*100;
 
-        // ============================================================
-        // DADOS DA JORNADA (DAY_DATA, PHASES, TABLES, etc.)
-        // ============================================================
+        // ── DADOS DO SISTEMA ────────────────────────────────────────
         const PHASES = [
             {id:1,name:"Fase 1: Fundamentos",range:[1,30],color:"#3b82f6",icon:"🌱"},
             {id:2,name:"Fase 2: Prática Guiada",range:[31,60],color:"#10b981",icon:"⚡"},
@@ -90,17 +108,36 @@
             {id:4,name:"Fase 4: Portfólio & Carreira",range:[76,90],color:"#8b5cf6",icon:"🏆"},
         ];
 
-        const DAY_DATA = [
-            {day:1,title:"Bem-vindo à Jornada!",phase:1,xp:50,track:"python",mission:"Configure seu ambiente.",tasks:["Tarefa 1","Tarefa 2"],english:"Data Analyst",practice:"Pratique hoje."},
-            // ... (Você pode colar todos os outros 90 dias aqui conforme seu código original)
-        ];
+        const DAY_DATA = Array.from({length: 90}, (_, i) => ({
+            day: i + 1,
+            title: `Dia ${i+1}: ${["Intro Python", "Variáveis", "Listas", "SQL Básico", "Filtros SQL", "Power BI Intro", "Pandas", "ETL", "Portfólio"][i % 9]}`,
+            phase: (i < 30) ? 1 : (i < 60) ? 2 : (i < 75) ? 3 : 4,
+            xp: 50 + (i * 2),
+            track: ["python", "sql", "powerbi", "english"][i % 4],
+            mission: `Missão técnica para o dia ${i+1} da jornada de dados.`,
+            tasks: ["Assistir aula", "Praticar exercício", "Documentar no GitHub"],
+            english: "Vocabulário técnico do dia.",
+            practice: "Exercício prático de codificação."
+        }));
 
-        // COLE AQUI TODAS AS OUTRAS VARIÁVEIS (TABLES, LIBRARY, PYTHON_EX, SQL_EX) 
-        // QUE ESTAVAM NO SEU CÓDIGO ORIGINAL
+        const TABLES = {
+            produtos: [{id:1,nome:"Laptop",categoria:"Tech",preco:3500}, {id:2,nome:"Monitor",categoria:"Tech",preco:1200}],
+            vendas: [{id:1,produto:"Laptop",vendedor:"Ana",valor:3500,data:"2024-01-15"}],
+            clientes: [{id:1,nome:"Carlos",cidade:"SP",plano:"Premium"}]
+        };
 
-        // ============================================================
-        // CONTEXTOS E COMPONENTES UI (CÓDIGO ORIGINAL)
-        // ============================================================
+        function runSQL(q) {
+            const ql = q.toLowerCase().trim();
+            if (!ql.startsWith("select")) return {error:"Apenas SELECT permitido no sandbox."};
+            let rows = [];
+            if (ql.includes("produtos")) rows = [...TABLES.produtos];
+            else if (ql.includes("vendas")) rows = [...TABLES.vendas];
+            else if (ql.includes("clientes")) rows = [...TABLES.clientes];
+            else return {error: "Tabela não encontrada. Use: produtos, vendas ou clientes."};
+            return {rows, count: rows.length};
+        }
+
+        // ── CONTEXTOS ───────────────────────────────────────────────
         const AuthCtx = createContext(null);
         const ProgCtx = createContext(null);
 
@@ -119,34 +156,34 @@
 
             const login = async (email,pw)=>{
                 const users=DB.users(), u=Object.values(users).find(u=>u.email===email.toLowerCase());
-                if(!u) return {error:"Credenciais inválidas."};
+                if(!u) return {error:"Usuário não encontrado."};
                 const h=await Security.hashPassword(pw);
-                if(h!==u.password) return {error:"Credenciais inválidas."};
+                if(h!==u.password) return {error:"Senha incorreta."};
                 const tok=Security.generateJWT(u.id);
                 sessionStorage.setItem("dp_tok",tok);
-                const safe={...u,password:undefined}; setUser(safe); return {user:safe};
+                setUser({...u,password:undefined}); return {user:u};
             };
 
             const register = async (name,email,pw)=>{
+                if(!Security.validatePassword(pw)) return {error: "Senha fraca (mín 8 chars, 1 maiúsc, 1 num)."};
                 const users=DB.users();
-                if(Object.values(users).find(u=>u.email===email.toLowerCase())) return {error:"Email já existe."};
+                if(Object.values(users).find(u=>u.email===email.toLowerCase())) return {error:"Email já cadastrado."};
                 const id=crypto.randomUUID(), h=await Security.hashPassword(pw);
                 const nu={id,name:Security.sanitize(name),email:email.toLowerCase(),password:h,createdAt:Date.now()};
-                users[id]=nu; DB.setUsers(users); DB.setProgress(id,DB.progress(id));
+                users[id]=nu; DB.setUsers(users); DB.setProgress(id, DB.progress(id));
                 const tok=Security.generateJWT(id);
                 sessionStorage.setItem("dp_tok",tok);
-                const safe={...nu,password:undefined}; setUser(safe); return {user:safe};
+                setUser({...nu,password:undefined}); return {user:nu};
             };
 
             const logout=()=>{ sessionStorage.removeItem("dp_tok"); setUser(null); };
-
             return <AuthCtx.Provider value={{user,loading,login,register,logout}}>{children}</AuthCtx.Provider>;
         }
 
         function ProgressProvider({children}) {
             const {user}=useContext(AuthCtx);
             const [progress,setProgress]=useState(null);
-            useEffect(()=>{ if(user) setProgress(DB.progress(user.id)); else setProgress(null); },[user]);
+            useEffect(()=>{ if(user) setProgress(DB.progress(user.id)); },[user]);
 
             const save=(upd)=>{
                 if(!user) return;
@@ -155,64 +192,184 @@
                 DB.setProgress(user.id,updated); setProgress({...updated});
             };
 
-            return <ProgCtx.Provider value={{progress,save}}>{children}</ProgCtx.Provider>;
+            const addXP = (amt) => save({xp: progress.xp + amt});
+            const completeDay = (dayNum, xp) => {
+                if(progress.completedDays.includes(dayNum)) return;
+                save({completedDays: [...progress.completedDays, dayNum], xp: progress.xp + xp, streak: progress.streak + 1});
+            };
+
+            return <ProgCtx.Provider value={{progress,save,addXP,completeDay}}>{children}</ProgCtx.Provider>;
         }
 
-        const useAuth=()=>useContext(AuthCtx);
-        const useProgress=()=>useContext(ProgCtx);
+        // ── UI PRIMITIVES ───────────────────────────────────────────
+        const Card = ({children, sx={}}) => <div style={{background:'var(--card)', padding:'20px', borderRadius:'15px', border:'1px solid var(--border)', ...sx}}>{children}</div>;
+        const Btn = ({children, onClick, v="primary"}) => (
+            <button onClick={onClick} style={{
+                padding:'12px 24px', borderRadius:'10px', border:'none', fontWeight:'800', cursor:'pointer',
+                background: v==="primary" ? 'var(--accent)' : 'var(--surface)', color: '#fff', transition: '0.2s'
+            }} onMouseOver={e=>e.currentTarget.style.opacity='0.8'} onMouseOut={e=>e.currentTarget.style.opacity='1'}>
+                {children}
+            </button>
+        );
 
-        // ============================================================
-        // COMPONENTES DE INTERFACE (COLE OS SEUS AQUI)
-        // ============================================================
-        
-        // Exemplo de Botão e Landing Page simplificados para este arquivo único:
-        const C = { bg:"#020817", surface:"#0a1628", card:"#0f172a", border:"#1e293b", text:"#e2e8f0", accent:"#6366f1" };
-
-        function Landing({onLogin,onRegister}) {
+        // ── PÁGINAS ─────────────────────────────────────────────────
+        function Landing({onLogin, onRegister}) {
             return (
-                <div style={{minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", padding:20}}>
-                    <h1 style={{fontFamily:"'Syne', sans-serif", fontSize:"4rem", color:C.accent, marginBottom:10}}>DataPath</h1>
-                    <p style={{fontSize:"1.2rem", color:"#64748b", marginBottom:40}}>Sua jornada rumo à carreira de dados começa aqui.</p>
-                    <div style={{display:"flex", gap:15}}>
-                        <button onClick={onRegister} style={{padding:"15px 30px", background:C.accent, color:"white", border:"none", borderRadius:10, fontWeight:800, cursor:"pointer"}}>Começar Grátis</button>
-                        <button onClick={onLogin} style={{padding:"15px 30px", background:"#0f172a", color:"white", border:"1px solid #1e293b", borderRadius:10, fontWeight:800, cursor:"pointer"}}>Entrar</button>
+                <div className="page-enter" style={{minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', textAlign:'center', padding:'20px'}}>
+                    <div style={{fontSize:'60px', marginBottom:'20px'}}>⚡</div>
+                    <h1 style={{fontFamily:"'Syne'", fontSize:'clamp(3rem, 10vw, 5rem)', fontWeight:'900', color:'var(--accent)'}}>DataPath</h1>
+                    <p style={{color:'var(--muted)', fontSize:'1.2rem', maxWidth:'600px', marginBottom:'40px'}}>Domine Python, SQL e Power BI em uma jornada gamificada de 90 dias.</p>
+                    <div style={{display:'flex', gap:'15px'}}>
+                        <Btn onClick={onRegister}>Começar Grátis</Btn>
+                        <Btn onClick={onLogin} v="secondary">Entrar</Btn>
                     </div>
                 </div>
             );
         }
 
-        // ... (Cole aqui o restante dos seus componentes: AuthPage, AppShell, Dashboard, etc.)
+        function AuthPage({mode, onBack}) {
+            const [email,setEmail]=useState(""); const [pw,setPw]=useState(""); const [name,setName]=useState("");
+            const [err,setErr]=useState("");
+            const {login, register}=useContext(AuthCtx);
 
+            const handle = async () => {
+                const r = (mode==="login") ? await login(email,pw) : await register(name,email,pw);
+                if(r?.error) setErr(r.error);
+            };
+
+            return (
+                <div className="page-enter" style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                    <Card sx={{width:'380px'}}>
+                        <h2 style={{fontFamily:"'Syne'", marginBottom:'20px'}}>{mode==="login"?"Entrar":"Cadastrar"}</h2>
+                        {err && <p style={{color:'var(--red)', marginBottom:'10px', fontSize:'13px'}}>{err}</p>}
+                        <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
+                            {mode==="register" && <input placeholder="Nome" value={name} onChange={e=>setName(e.target.value)} style={{padding:'12px', background:'var(--surface)', border:'1px solid var(--border)', color:'#fff', borderRadius:'8px'}}/>}
+                            <input placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} style={{padding:'12px', background:'var(--surface)', border:'1px solid var(--border)', color:'#fff', borderRadius:'8px'}}/>
+                            <input type="password" placeholder="Senha" value={pw} onChange={e=>setPw(e.target.value)} style={{padding:'12px', background:'var(--surface)', border:'1px solid var(--border)', color:'#fff', borderRadius:'8px'}}/>
+                            <Btn onClick={handle}>{mode==="login"?"Entrar":"Criar Conta"}</Btn>
+                            <button onClick={onBack} style={{background:'none', border:'none', color:'var(--muted)', cursor:'pointer'}}>Voltar</button>
+                        </div>
+                    </Card>
+                </div>
+            );
+        }
+
+        function Dashboard({go}) {
+            const {user}=useContext(AuthCtx);
+            const {progress}=useContext(ProgCtx);
+            if(!progress) return null;
+
+            return (
+                <div className="page-enter" style={{maxWidth:'1000px', margin:'0 auto', padding:'20px'}}>
+                    <Card sx={{marginBottom:'20px', background:'linear-gradient(135deg, #1e1b4b 0%, #020817 100%)'}}>
+                        <h2 style={{fontFamily:"'Syne'"}}>Olá, {user.name}! 👋</h2>
+                        <p style={{color:'var(--muted)'}}>Nível {progress.level} | {progress.xp} XP | 🔥 {progress.streak} dias de sequência</p>
+                        <div style={{width:'100%', background:'var(--border)', height:'10px', borderRadius:'10px', marginTop:'15px'}}>
+                            <div style={{width:`${(progress.xp % 100)}%`, background:'var(--accent)', height:'100%', borderRadius:'10px'}}/>
+                        </div>
+                    </Card>
+
+                    <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(250px, 1fr))', gap:'20px'}}>
+                        <Card>
+                            <h3>🗺️ Jornada</h3>
+                            <p style={{fontSize:'14px', color:'var(--muted)', margin:'10px 0'}}>Continue seu treinamento de 90 dias.</p>
+                            <Btn onClick={()=>go("journey")}>Ver Missões</Btn>
+                        </Card>
+                        <Card>
+                            <h3>🗄️ SQL Sandbox</h3>
+                            <p style={{fontSize:'14px', color:'var(--muted)', margin:'10px 0'}}>Pratique consultas em tempo real.</p>
+                            <Btn onClick={()=>go("sql")}>Abrir Console</Btn>
+                        </Card>
+                    </div>
+                </div>
+            );
+        }
+
+        function Journey({go}) {
+            const {progress, completeDay}=useContext(ProgCtx);
+            return (
+                <div className="page-enter" style={{maxWidth:'1000px', margin:'0 auto', padding:'20px'}}>
+                    <button onClick={()=>go("dashboard")} style={{color:'var(--accent)', background:'none', border:'none', marginBottom:'20px', cursor:'pointer'}}>← Voltar</button>
+                    <h2 style={{fontFamily:"'Syne'", marginBottom:'20px'}}>Jornada 90 Dias</h2>
+                    <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(140px, 1fr))', gap:'10px'}}>
+                        {DAY_DATA.map(d => (
+                            <div key={d.day} onClick={() => completeDay(d.day, d.xp)} style={{
+                                padding:'15px', borderRadius:'12px', textAlign:'center', cursor:'pointer',
+                                background: progress.completedDays.includes(d.day) ? 'var(--green)' : 'var(--card)',
+                                border: '1px solid var(--border)', opacity: progress.completedDays.includes(d.day) ? 0.7 : 1
+                            }}>
+                                <div style={{fontSize:'12px', color:'var(--muted)'}}>Dia</div>
+                                <div style={{fontSize:'20px', fontWeight:'900'}}>{d.day}</div>
+                                {progress.completedDays.includes(d.day) && <span>✓</span>}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        function SQLConsole({go}) {
+            const [query, setQuery] = useState("SELECT * FROM produtos;");
+            const [res, setRes] = useState(null);
+            const exec = () => setRes(runSQL(query));
+
+            return (
+                <div className="page-enter" style={{maxWidth:'1000px', margin:'0 auto', padding:'20px'}}>
+                    <button onClick={()=>go("dashboard")} style={{color:'var(--accent)', background:'none', border:'none', marginBottom:'20px', cursor:'pointer'}}>← Voltar</button>
+                    <Card>
+                        <h2 style={{fontFamily:"'Syne'", marginBottom:'15px'}}>SQL Sandbox</h2>
+                        <textarea value={query} onChange={e=>setQuery(e.target.value)} style={{
+                            width:'100%', height:'100px', background:'#000', color:'#0f0', padding:'15px', fontFamily:'monospace', borderRadius:'10px', border:'1px solid var(--border)'
+                        }} />
+                        <div style={{marginTop:'10px'}}><Btn onClick={exec}>Executar Query</Btn></div>
+                    </Card>
+                    {res && (
+                        <Card sx={{marginTop:'20px', overflowX:'auto'}}>
+                            {res.error ? <p style={{color:'var(--red)'}}>{res.error}</p> : (
+                                <table style={{width:'100%', borderCollapse:'collapse'}}>
+                                    <thead>
+                                        <tr style={{borderBottom:'1px solid var(--border)'}}>
+                                            {Object.keys(res.rows[0]||{}).map(k=><th key={k} style={{padding:'10px', textAlign:'left'}}>{k}</th>)}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {res.rows.map((r,i)=><tr key={i}>{Object.values(r).map((v,j)=><td key={j} style={{padding:'10px'}}>{v}</td>)}</tr>)}
+                                    </tbody>
+                                </table>
+                            )}
+                        </Card>
+                    )}
+                </div>
+            );
+        }
+
+        // ── APP ROOT (SISTEMA DE NAVEGAÇÃO) ─────────────────────────
         function AppRoot() {
-            const [view, setView] = useState("landing");
-            const {user, loading} = useAuth();
+            const {user, loading}=useContext(AuthCtx);
+            const [view, setView]=useState("landing");
+            const [authMode, setAuthMode]=useState("login");
 
-            if(loading) return <div style={{display:"flex", height:"100vh", alignItems:"center", justifyContent:"center"}}>Carregando...</div>;
+            if(loading) return <div style={{display:'flex', height:'100vh', alignItems:'center', justifyContent:'center'}}>⚡ Carregando...</div>;
             
-            if(user) return (
+            if(!user) {
+                if(view === "landing") return <Landing onLogin={()=>{setView("auth"); setAuthMode("login")}} onRegister={()=>{setView("auth"); setAuthMode("register")}}/>;
+                return <AuthPage mode={authMode} onBack={()=>setView("landing")}/>;
+            }
+
+            return (
                 <ProgressProvider>
-                    <div style={{padding:40}}>
-                        <h1>Bem-vindo, {user.name}!</h1>
-                        <p>Você está logado com sucesso.</p>
-                        <button onClick={() => window.location.reload()} style={{marginTop:20, padding:10}}>Sair</button>
+                    <div style={{minHeight:'100vh'}}>
+                        <header style={{padding:'20px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center', background:'var(--surface)'}}>
+                            <div style={{fontFamily:"'Syne'", fontWeight:'900', color:'var(--accent)'}}>DATAPATH ⚡</div>
+                            <button onClick={() => window.location.reload()} style={{background:'none', border:'none', color:'var(--muted)', cursor:'pointer'}}>Sair</button>
+                        </header>
+                        {view === "sql" ? <SQLConsole go={setView}/> : view === "journey" ? <Journey go={setView}/> : <Dashboard go={setView}/>}
                     </div>
                 </ProgressProvider>
             );
-
-            if(view === "landing") return <Landing onLogin={() => setView("login")} onRegister={() => setView("register")} />;
-            
-            return (
-                <div style={{display:"flex", height:"100vh", alignItems:"center", justifyContent:"center"}}>
-                    <div style={{background:C.card, padding:40, borderRadius:20, border:"1px solid #1e293b"}}>
-                        <h2>Acesso ao DataPath</h2>
-                        <p style={{marginBottom:20}}>Funcionalidade de Login/Registro ativa.</p>
-                        <button onClick={() => setView("landing")} style={{color:C.accent, background:"none", border:"none", cursor:"pointer"}}>Voltar</button>
-                    </div>
-                </div>
-            );
         }
 
-        function DataPath() {
+        function Main() {
             return (
                 <AuthProvider>
                     <AppRoot />
@@ -221,7 +378,7 @@
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<DataPath />);
+        root.render(<Main />);
     </script>
 </body>
 </html>
