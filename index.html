@@ -4,13 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DataPath — Oficial</title>
+    
+    <!-- Adicione estas 3 linhas (As peças do motor) -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <style>
-      body { margin: 0; padding: 0; background-color: #050507; }
+      body { margin: 0; padding: 0; background-color: #050507; color: white; }
       #root { min-height: 100vh; }
     </style>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    
+    <!-- Mude o type para "text/babel" e verifique se o caminho do seu arquivo está correto -->
+    <script type="text/babel" src="/src/main.jsx"></script>
   </body>
 </html>
