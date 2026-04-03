@@ -3,14 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DataPath — Oficial</title>
-    <!-- Bibliotecas Core (React 18 + Babel para tradução em tempo real) -->
+    <title>DataPath — Plataforma Gamificada de Dados</title>
+    <!-- Bibliotecas Core -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Fontes Oficiais -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Fontes Premium -->
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -19,8 +17,12 @@
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: #020817; }
         ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+        code { background: #1e293b; padding: 2px 5px; border-radius: 4px; color: #818cf8; font-family: monospace; }
+        pre { background: #0a1628; padding: 15px; border-radius: 10px; border: 1px solid #1e293b; color: #34d399; font-family: monospace; overflow-x: auto; margin: 10px 0; }
+        a { color: #6366f1; text-decoration: none; font-weight: 700; }
+        a:hover { text-decoration: underline; }
         input:focus, textarea:focus, select:focus { outline: none !important; border-color: #6366f1 !important; box-shadow: 0 0 0 3px #6366f115; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -29,343 +31,200 @@
     <script type="text/babel">
         const { useState, useEffect, useCallback, useRef, createContext, useContext } = React;
 
-        // ============================================================
-        // DATAPATH — LÓGICA INTEGRAL (SEGURANÇA E PERSISTÊNCIA)
-        // ============================================================
-
-        const Security = {
-            hashPassword: async (pw) => {
-                const data = new TextEncoder().encode(pw + "dp_salt_x9k2");
-                const hash = await crypto.subtle.digest("SHA-256", data);
-                return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,"0")).join("");
-            },
-            sanitize: (s) => typeof s === "string" ? s.replace(/[<>&"']/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;","'":"&#x27;"}[c])) : "",
-            validateEmail: (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e),
-            validatePassword: (p) => p.length >= 8 && /[A-Z]/.test(p) && /[0-9]/.test(p),
-            generateJWT: (uid) => {
-                const h = btoa(JSON.stringify({alg:"HS256",typ:"JWT"}));
-                const p = btoa(JSON.stringify({sub:uid,iat:Date.now(),exp:Date.now()+86400000}));
-                const s = btoa(uid+"dp_secret_key");
-                return `${h}.${p}.${s}`;
-            },
-            verifyJWT: (token) => {
-                try { const d = JSON.parse(atob(token.split(".")[1])); return d.exp > Date.now() ? d : null; }
-                catch { return null; }
-            },
-        };
-
-        const RL = { _a: {}, check(k, max=5, win=900000) {
-            const now = Date.now();
-            this._a[k] = (this._a[k]||[]).filter(t=>now-t<win);
-            if (this._a[k].length >= max) return false;
-            this._a[k].push(now); return true;
-        }};
-
+        // ── BANCO DE DADOS E GAMIFICAÇÃO ───────────────────────────
         const DB = {
             g: (k) => { try { return JSON.parse(localStorage.getItem("dp_"+k)||"null"); } catch { return null; }},
             s: (k,v) => { try { localStorage.setItem("dp_"+k, JSON.stringify(v)); } catch {} },
-            users: () => DB.g("users") || {},
-            setUsers: (u) => DB.s("users", u),
-            progress: (id) => DB.g("prog_"+id) || defProgress(id),
+            progress: (id) => DB.g("prog_"+id) || {userId:id, xp:0, level:1, streak:0, completedDays:[], trackProgress:{python:0,sql:0}},
             setProgress: (id,p) => DB.s("prog_"+id, p),
             notes: (id) => DB.g("notes_"+id) || [],
             setNotes: (id,n) => DB.s("notes_"+id, n),
-            portfolio: (id) => DB.g("pf_"+id) || [],
-            setPortfolio: (id,p) => DB.s("pf_"+id, p),
-            resume: (id) => DB.g("cv_"+id) || defResume(),
-            setResume: (id,r) => DB.s("cv_"+id, r),
-            goals: (id) => DB.g("goals_"+id) || [],
-            setGoals: (id,g) => DB.s("goals_"+id, g),
-            habits: (id) => DB.g("habits_"+id) || defHabits(),
-            setHabits: (id,h) => DB.s("habits_"+id, h),
-            checklist: (id) => DB.g("check_"+id) || [],
-            setChecklist: (id,c) => DB.s("check_"+id, c),
         };
-
-        const defProgress = (id) => ({
-            userId:id, xp:0, level:1, streak:0, lastStudy:null,
-            completedDays:[], achievements:[], trackProgress:{python:0,sql:0,powerbi:0,english:0}
-        });
-        const defResume = () => ({
-            name:"",title:"",email:"",phone:"",linkedin:"",github:"",
-            summary:"",skills:[],experience:[],education:[],projects:[],certifications:[]
-        });
-        const defHabits = () => ([
-            {id:1,name:"Estudar Python",streak:0,done:false,color:"#3b82f6"},
-            {id:2,name:"Praticar SQL",streak:0,done:false,color:"#10b981"},
-            {id:3,name:"Inglês técnico",streak:0,done:false,color:"#f59e0b"},
-            {id:4,name:"Revisão do dia",streak:0,done:false,color:"#8b5cf6"},
-        ]);
 
         const calcLevel = (xp) => Math.floor(Math.sqrt(xp/100))+1;
         const xpForLevel = (lvl) => (lvl-1)*(lvl-1)*100;
         const xpForNext = (lvl) => lvl*lvl*100;
 
-        const ACHIEVEMENTS = [
-            {id:"first",name:"Primeiro Passo",desc:"Concluiu o Dia 1",icon:"🌱",xp:50,cond:(p)=>p.completedDays.length>=1},
-            {id:"week1",name:"Semana Completa",desc:"7 dias concluídos",icon:"🔥",xp:100,cond:(p)=>p.completedDays.length>=7},
-            {id:"streak7",name:"Sequência de 7d",desc:"7 dias consecutivos",icon:"⚡",xp:150,cond:(p)=>p.streak>=7},
-            {id:"lvl5",name:"Nível 5",desc:"Alcançou o nível 5",icon:"⭐",xp:200,cond:(p)=>p.level>=5},
-            {id:"day30",name:"Mês de Dados",desc:"30 dias concluídos",icon:"🏆",xp:300,cond:(p)=>p.completedDays.length>=30},
-            {id:"pf1",name:"Portfólio Iniciado",desc:"Adicionou 1 projeto",icon:"💼",xp:100,cond:(p)=>(p.portfolioCount||0)>=1},
-        ];
-
         const PHASES = [
             {id:1,name:"Fase 1: Fundamentos",range:[1,30],color:"#3b82f6",icon:"🌱"},
-            {id:2,name:"Fase 2: Prática Guiada",range:[31,60],color:"#10b981",icon:"⚡"},
-            {id:3,name:"Fase 3: Projetos",range:[61,75],color:"#f59e0b",icon:"🚀"},
-            {id:4,name:"Fase 4: Portfólio & Carreira",range:[76,90],color:"#8b5cf6",icon:"🏆"},
+            {id:2,name:"Fase 2: Prática Guiada",range:[31,60],color:"#10b981",icon:"⚡"}
         ];
 
-        // DAY_DATA INTEGRAL (TODOS OS DIAS)
+        // ── DAY_DATA COM CONTEÚDO E LINKS (QA ENRICHED) ──────────────
         const DAY_DATA = [
-            {day:1,title:"Bem-vindo à Jornada de Dados!",phase:1,xp:50,track:"python",mission:"Configure seu ambiente e entenda a jornada que você está iniciando.",tasks:["Leia o guia de boas-vindas","Configure o VS Code com Python","Crie sua conta no GitHub","Defina sua meta de carreira por escrito"],english:"Vocabulário: 'data analyst', 'dataset', 'pipeline', 'insight', 'data-driven'",practice:"Escreva no bloco de notas: por que você quer trabalhar com dados?"},
-            {day:2,title:"Python: Variáveis e Tipos",phase:1,xp:60,track:"python",mission:"Domine variáveis e tipos de dados em Python.",tasks:["Estude int, str, float, bool","Crie variáveis dos 4 tipos","Pratique type() e print()","Resolva 3 exercícios"],english:"Vocabulário: 'variable', 'string', 'integer', 'boolean', 'output'",practice:"Script com seu nome, idade e objetivo profissional."},
-            {day:3,title:"Python: Operadores",phase:1,xp:60,track:"python",mission:"Domine operadores aritméticos, lógicos e de comparação.",tasks:["Operadores aritméticos (+,-,*,/,**)","Operadores de comparação","Operadores lógicos (and, or, not)","Crie calculadora básica"],english:"Vocabulário: 'operator', 'expression', 'comparison', 'boolean logic'",practice:"Calculadora de IMC em Python."},
-            {day:4,title:"Python: Condicionais",phase:1,xp:70,track:"python",mission:"Aprenda if, elif e else para controle de fluxo.",tasks:["if / elif / else básico","Condicionais aninhados","Classificador de notas","Verificador de faixa salarial"],english:"Vocabulário: 'conditional', 'flow control', 'nested', 'if statement'",practice:"Classificador de senioridade por anos de experiência."},
-            {day:5,title:"Python: Laços (for e while)",phase:1,xp:70,track:"python",mission:"Domine laços para automação e repetição.",tasks:["for com range()","while básico","break e continue","Tabuada automática"],english:"Vocabulário: 'loop', 'iteration', 'range', 'break', 'continue'",practice:"Gerador de relatório fictício de vendas."},
-            {day:6,title:"SQL: Primeiros Passos",phase:1,xp:60,track:"sql",mission:"Entenda bancos de dados relacionais e faça seus primeiros SELECTs.",tasks:["O que é banco relacional?","Tabelas, linhas e colunas","SELECT * FROM tabela","5 queries no sandbox"],english:"Vocabulário: 'query', 'table', 'row', 'column', 'schema'",practice:"Execute queries básicas no banco demo da plataforma."},
-            {day:7,title:"Revisão — Semana 1 🎉",phase:1,xp:80,track:"python",mission:"Revise a semana 1 e construa seu primeiro mini projeto.",tasks:["Revise: variáveis, operadores, condicionais, laços","Revise: SELECT básico","Mini projeto: analisador de lista de vendas","Commit no GitHub"],english:"Monte seu glossário pessoal da semana.",practice:"Script que lê uma lista, calcula média e exibe relatório."},
-            {day:8,title:"Python: Funções",phase:1,xp:70,track:"python",mission:"Crie funções reutilizáveis para organizar seu código.",tasks:["def e return","Parâmetros e argumentos","Valores padrão","Refatore código anterior"],english:"Vocabulário: 'function', 'parameter', 'return value', 'scope'",practice:"Biblioteca de funções estatísticas sem pandas."},
-            {day:9,title:"Python: Listas",phase:1,xp:70,track:"python",mission:"Domine listas para trabalhar com coleções de dados.",tasks:["Criação e indexação","Slicing e iteração","List comprehension","append, sort, filter, map"],english:"Vocabulário: 'list', 'index', 'slice', 'iteration', 'comprehension'",practice:"Análise de lista com 20 salários fictícios."},
-            {day:10,title:"Python: Dicionários",phase:1,xp:70,track:"python",mission:"Use dicionários para estruturar dados com chave-valor.",tasks:["Criação e acesso","Iterar sobre dict","Dicionários aninhados","Exercício: dados de funcionários"],english:"Vocabulário: 'dictionary', 'key-value', 'hash map', 'nested'",practice:"Dicionário de 10 funcionários com relatório de salários."},
-            {day:11,title:"SQL: WHERE e Filtros",phase:1,xp:65,track:"sql",mission:"Filtre dados com WHERE, AND, OR e operadores.",tasks:["WHERE básico","AND e OR","BETWEEN e IN","LIKE para texto"],english:"Vocabulário: 'filter', 'condition', 'wildcard', 'pattern matching'",practice:"Filtre produtos por categoria e faixa de preço."},
-            {day:12,title:"Python: Strings",phase:1,xp:65,track:"python",mission:"Manipule strings para limpeza e processamento de dados.",tasks:["upper, lower, strip, split","replace e find","f-strings","Limpeza de dados textuais"],english:"Vocabulário: 'string manipulation', 'parsing', 'cleaning', 'normalize'",practice:"Normalize lista de nomes de clientes."},
-            {day:13,title:"SQL: ORDER BY e LIMIT",phase:1,xp:60,track:"sql",mission:"Ordene e limite resultados para análises focadas.",tasks:["ORDER BY ASC e DESC","LIMIT e OFFSET","Múltiplas colunas","Top N análises"],english:"Vocabulário: 'sort', 'ascending', 'descending', 'offset', 'paginate'",practice:"Top 3 produtos mais caros e análise de ranking."},
-            {day:14,title:"Revisão — Semana 2",phase:1,xp:80,track:"python",mission:"Revise semana 2 e crie exercício integrado.",tasks:["Revise: funções, listas, dicionários","Revise: WHERE, ORDER BY","Exercício integrado Python+SQL","GitHub atualizado"],english:"Frases técnicas com vocabulário das 2 semanas.",practice:"Script Python que simula queries SQL com dicionários."},
-            {day:15,title:"Python: Tratamento de Erros",phase:1,xp:70,track:"python",mission:"Crie código robusto com try/except.",tasks:["try/except básico","Múltiplos erros","finally e raise","Funções com tratamento"],english:"Vocabulário: 'exception', 'error handling', 'raise', 'debug', 'traceback'",practice:"Adicione robustez ao projeto de vendas."},
-            {day:16,title:"SQL: GROUP BY",phase:1,xp:70,track:"sql",mission:"Agrupe dados para análises poderosas.",tasks:["GROUP BY básico","COUNT, SUM, AVG, MAX, MIN","GROUP BY + WHERE","HAVING clause"],english:"Vocabulário: 'aggregate', 'group by', 'having', 'count', 'sum'",practice:"Total de vendas por categoria no sandbox."},
-            {day:17,title:"Python: Arquivos e CSV",phase:1,xp:75,track:"python",mission:"Leia e escreva arquivos CSV com Python.",tasks:["open() e with","csv.reader e writer","Leitura de CSV real","Geração de relatório CSV"],english:"Vocabulário: 'file handling', 'CSV', 'read', 'write', 'encoding'",practice:"Leia um CSV e gere relatório de análise."},
-            {day:18,title:"SQL: JOINs Básicos",phase:1,xp:75,track:"sql",mission:"Una tabelas com INNER JOIN e LEFT JOIN.",tasks:["O que são JOINs?","INNER JOIN","LEFT JOIN","Exercício: clientes + pedidos"],english:"Vocabulário: 'join', 'relationship', 'foreign key', 'primary key'",practice:"Una clientes e vendas no sandbox."},
-            {day:19,title:"Python: Pandas — Introdução",phase:1,xp:80,track:"python",mission:"Comece a trabalhar com DataFrames pandas.",tasks:["import pandas as pd","pd.DataFrame()","Leitura de CSV com pandas","df.head(), info(), describe()"],english:"Vocabulário: 'DataFrame', 'Series', 'index', 'column', 'shape'",practice:"Carregue e explore um dataset de vendas."},
-            {day:20,title:"Revisão — Semana 3",phase:1,xp:85,track:"python",mission:"Revise semana 3 e construa análise completa.",tasks:["Revise: arquivos, pandas intro","Revise: JOINs e GROUP BY","Mini projeto: análise CSV completa","Documente no GitHub"],english:"Frases de apresentação de projeto de dados.",practice:"Análise exploratória completa de dataset fictício."},
-            ...Array.from({length:10},(_,i)=>({day:21+i,title:["Python: Pandas Filtros","SQL: Subqueries","Power BI: Introdução","Inglês: Tech Vocab","Python: GroupBy Pandas","SQL: LEFT e RIGHT JOIN","Power BI: Power Query","Inglês: Documentation","Python: Merge e Concat","SQL: CTEs"][i],phase:1,xp:75+i*5,track:["python","sql","powerbi","english","python","sql","powerbi","english","python","sql"][i],mission:`Evolua suas habilidades no dia ${21+i} da jornada.`,tasks:["Estude o conteúdo do dia","Pratique exercícios","Anote aprendizados","Atualize GitHub"],english:"Pratique vocabulário técnico aplicado.",practice:"Complete o exercício prático do dia."})),
-            ...Array.from({length:9},(_,i)=>({day:31+i,title:["Python: Visualização com Matplotlib","SQL: Window Functions","Power BI: Modelagem","Inglês: Meetings","Python: Seaborn","SQL: Funções de Data","Power BI: DAX Básico","Inglês: Presentations","Python: NumPy"][i],phase:2,xp:80+i*5,track:["python","sql","powerbi","english","python","sql","powerbi","english","python"][i],mission:`Aprofunde sua prática — dia ${31+i}.`,tasks:["Conteúdo teórico do dia","Exercício prático","Mini projeto parcial","Commit GitHub"],english:"Vocabulário técnico aplicado a contextos reais.",practice:"Exercício prático com dados reais ou simulados."})),
-            ...Array.from({length:51},(_,i)=>({day:40+i,title:`Dia ${40+i}: ${["Python Avançado","SQL Analítico","Power BI Avançado","Inglês para Entrevistas","Projeto Python","Análise SQL Completa","Dashboard Power BI","Inglês Técnico","Portfólio","Currículo ATS"][i%10]}`,phase:40+i<=60?2:40+i<=75?3:4,xp:85+Math.floor(i/5)*5,track:["python","sql","powerbi","english","python","sql","powerbi","english","python","sql"][i%10],mission:`Continue sua evolução — dia ${40+i} da jornada de dados.`,tasks:["Conteúdo do dia","Exercícios práticos","Revisão e notas","GitHub atualizado"],english:"Vocabulário e frases técnicas do dia.",practice:"Exercício integrado do dia."})),
-        ];
-
-        // SQL SANDBOX DATA INTEGRAL
-        const TABLES = {
-            produtos:[
-                {id:1,nome:"Laptop Pro",categoria:"Tech",preco:3500,estoque:10},
-                {id:2,nome:"Monitor 4K",categoria:"Tech",preco:1200,estoque:25},
-                {id:3,nome:"Teclado Mecânico",categoria:"Periféricos",preco:350,estoque:50},
-                {id:4,nome:"Mouse Gamer",categoria:"Periféricos",preco:180,estoque:80},
-                {id:5,nome:"Headset BT",categoria:"Audio",preco:250,estoque:30},
-                {id:6,nome:"Webcam HD",categoria:"Tech",preco:420,estoque:20},
-            ],
-            vendas:[
-                {id:1,produto:"Laptop Pro",vendedor:"Ana",valor:3500,data:"2024-01-15",categoria:"Tech"},
-                {id:2,produto:"Monitor 4K",vendedor:"João",valor:1200,data:"2024-01-16",categoria:"Tech"},
-                {id:3,produto:"Teclado",vendedor:"Ana",valor:350,data:"2024-01-17",categoria:"Periféricos"},
-                {id:4,produto:"Mouse",vendedor:"Maria",valor:180,data:"2024-01-18",categoria:"Periféricos"},
-                {id:5,produto:"Headset",vendedor:"João",valor:250,data:"2024-01-19",categoria:"Audio"},
-                {id:6,produto:"Webcam",vendedor:"Maria",valor:420,data:"2024-02-01",categoria:"Tech"},
-            ],
-            clientes:[
-                {id:1,nome:"Carlos Silva",cidade:"São Paulo",plano:"Premium"},
-                {id:2,nome:"Ana Lima",cidade:"Rio de Janeiro",plano:"Básico"},
-                {id:3,nome:"Pedro Souza",cidade:"Curitiba",plano:"Premium"},
-                {id:4,nome:"Julia Martins",cidade:"São Paulo",plano:"Básico"},
-            ],
-        };
-
-        function runSQL(q) {
-            const ql = q.toLowerCase().trim();
-            if (!ql.startsWith("select")) return {error:"Apenas SELECT é permitido no sandbox."};
-            let rows = [];
-            if (ql.includes("from produtos")) rows = [...TABLES.produtos];
-            else if (ql.includes("from vendas")) rows = [...TABLES.vendas];
-            else if (ql.includes("from clientes")) rows = [...TABLES.clientes];
-            else return {error:"Tabelas: produtos, vendas, clientes"};
-            
-            const wm = ql.match(/where (.+?)(?:order by|group by|limit|having|$)/);
-            if (wm) {
-                const wc = wm[1].trim();
-                if (wc.includes("preco >")) { const v=parseInt(wc.match(/preco > (\d+)/)?.[1]||0); rows=rows.filter(r=>r.preco>v); }
-                if (wc.includes("preco <")) { const v=parseInt(wc.match(/preco < (\d+)/)?.[1]||0); rows=rows.filter(r=>r.preco<v); }
-                if (wc.includes("valor >")) { const v=parseInt(wc.match(/valor > (\d+)/)?.[1]||0); rows=rows.filter(r=>r.valor>v); }
-                if (wc.includes("categoria = ")) { const v=wc.match(/categoria = '([^']+)'/)?.[1]; if(v) rows=rows.filter(r=>r.categoria===v); }
-                if (wc.includes("plano = ")) { const v=wc.match(/plano = '([^']+)'/)?.[1]; if(v) rows=rows.filter(r=>r.plano===v); }
+            {
+                day: 1,
+                title: "Bem-vindo à Jornada de Dados!",
+                phase: 1,
+                xp: 50,
+                track: "python",
+                mission: "Configure seu ambiente de trabalho profissional.",
+                tasks: ["Instale o VS Code", "Configure o Python 3", "Crie sua conta no GitHub"],
+                guide: (
+                    <div>
+                        <p>Para ser um Analista de Dados, você precisa de ferramentas sólidas. O <strong>VS Code</strong> é o editor mais usado no mundo.</p>
+                        <pre># Verifique se o Python está instalado no terminal:&#10;python --version</pre>
+                    </div>
+                ),
+                links: [
+                    { label: "Download VS Code", url: "https://code.visualstudio.com/" },
+                    { label: "Download Python Official", url: "https://www.python.org/downloads/" }
+                ]
+            },
+            {
+                day: 2,
+                title: "Python: Variáveis e Tipos",
+                phase: 1,
+                xp: 60,
+                track: "python",
+                mission: "Domine os 4 tipos de dados primitivos do Python.",
+                tasks: ["Estude int, str, float, bool", "Crie variáveis dos 4 tipos", "Pratique type() e print()", "Resolva 3 exercícios"],
+                guide: (
+                    <div>
+                        <p>Variáveis são como "caixas" que guardam dados. Em Python, você não precisa dizer o tipo, ele descobre sozinho.</p>
+                        <ul>
+                            <li><strong>int:</strong> Números inteiros (Ex: <code>idade = 25</code>)</li>
+                            <li><strong>float:</strong> Números com vírgula/ponto (Ex: <code>preco = 19.90</code>)</li>
+                            <li><strong>str (string):</strong> Textos entre aspas (Ex: <code>nome = "Dados"</code>)</li>
+                            <li><strong>bool:</strong> Verdadeiro ou Falso (Ex: <code>pago = True</code>)</li>
+                        </ul>
+                        <pre># Exemplo Prático:&#10;nome = "Thiago"&#10;xp = 100&#10;print(type(nome)) # Saída: &lt;class 'str'&gt;</pre>
+                    </div>
+                ),
+                links: [
+                    { label: "W3Schools: Python Data Types", url: "https://www.w3schools.com/python/python_datatypes.asp" },
+                    { label: "Documentação: Introdução ao Python", url: "https://docs.python.org/pt-br/3/tutorial/introduction.html" }
+                ]
+            },
+            {
+                day: 3,
+                title: "Python: Operadores e Lógica",
+                phase: 1,
+                xp: 60,
+                track: "python",
+                mission: "Aprenda a fazer cálculos e comparações no código.",
+                tasks: ["Operadores + - * /", "Operadores de Comparação == != >", "Operadores Lógicos and / or"],
+                guide: (
+                    <div>
+                        <p>Operadores permitem manipular variáveis para gerar resultados.</p>
+                        <pre>a = 10&#10;b = 3&#10;soma = a + b&#10;print(f"O resultado é {soma}")</pre>
+                    </div>
+                ),
+                links: [
+                    { label: "Guia: Operadores Python", url: "https://www.w3schools.com/python/python_operators.asp" }
+                ]
             }
-            if (ql.includes("group by")) {
-                const gb = ql.match(/group by (\w+)/)?.[1];
-                if (gb) {
-                    const grouped = {};
-                    rows.forEach(r => { const k=r[gb]; if(!grouped[k]) grouped[k]={[gb]:k,count:0,total:0}; grouped[k].count++; grouped[k].total+=(r.valor||r.preco||0); });
-                    rows = Object.values(grouped).map(g=>({[gb]:g[gb],"COUNT(*)":g.count,"SUM(valor/preco)":g.total}));
-                }
-            }
-            if (ql.includes("order by")) {
-                const ob = ql.match(/order by (\w+)(?: (asc|desc))?/);
-                if (ob) { const [,col,dir="asc"]=ob; rows=[...rows].sort((a,b)=>{const va=a[col]||0,vb=b[col]||0;return dir==="desc"?vb-va:va-vb;}); }
-            }
-            const lm = ql.match(/limit (\d+)/);
-            if (lm) rows = rows.slice(0, parseInt(lm[1]));
-            return {rows, count:rows.length};
-        }
-
-        const LIBRARY = [
-            {id:1,title:"Cheatsheet Python para Dados",cat:"Python",type:"Cheatsheet",tags:["pandas","numpy","python"],desc:"Referência rápida dos principais comandos Python para análise de dados.",url:"https://pandas.pydata.org/docs/",icon:"🐍"},
-            {id:2,title:"SQL para Analistas",cat:"SQL",type:"Apostila",tags:["sql","select","joins"],desc:"Guia completo de SQL com foco em análise de dados.",url:"https://www.w3schools.com/sql/",icon:"🗄️"},
-            {id:3,title:"Documentação Pandas",cat:"Python",type:"Docs",tags:["pandas","dataframe"],desc:"Documentação oficial do Pandas.",url:"https://pandas.pydata.org/docs/",icon:"📚"},
-            {id:4,title:"Power BI — Guia Completo",cat:"Power BI",type:"Guia",tags:["powerbi","dax","dashboard"],desc:"Do básico ao avançado no Power BI.",url:"https://docs.microsoft.com/pt-br/power-bi/",icon:"📊"},
-            {id:5,title:"Vocabulário Técnico em Inglês",cat:"Inglês",type:"Glossário",tags:["english","vocabulary","tech"],desc:"500+ termos da área de dados com tradução.",url:"#",icon:"🇺🇸"},
-            {id:6,title:"Dataset: Vendas Brasileiras",cat:"Datasets",type:"Dataset",tags:["dataset","vendas","csv"],desc:"10.000 registros de vendas para prática.",url:"#",icon:"📁"},
-            {id:7,title:"Cheatsheet SQL Avançado",cat:"SQL",type:"Cheatsheet",tags:["sql","window functions","cte"],desc:"CTEs, Window Functions e queries analíticas.",url:"#",icon:"📋"},
-            {id:8,title:"DAX — Fórmulas Essenciais",cat:"Power BI",type:"Cheatsheet",tags:["dax","powerbi","medidas"],desc:"As 50 fórmulas DAX mais usadas.",url:"#",icon:"⚡"},
-            {id:9,title:"Guia de Carreira: Analista de Dados",cat:"Carreira",type:"Guia",tags:["carreira","emprego","salário"],desc:"Mercado, salários e como conseguir o 1º emprego.",url:"#",icon:"💼"},
-            {id:10,title:"Python: Automação com openpyxl",cat:"Python",type:"Tutorial",tags:["python","excel","automação"],desc:"Automatize planilhas Excel com Python.",url:"#",icon:"🤖"},
-            {id:11,title:"Inglês: Frases para Entrevistas",cat:"Inglês",type:"Guia",tags:["inglês","entrevista"],desc:"100 frases em inglês para entrevistas de dados.",url:"#",icon:"🎯"},
-            {id:12,title:"Modelagem de Dados",cat:"SQL",type:"Apostila",tags:["modelagem","er","normalização"],desc:"Modelagem ER e normalização de banco.",url:"#",icon:"🔗"},
         ];
 
-        const PYTHON_EX = [
-            {id:1,level:"Iniciante",title:"Calculadora de IMC",desc:"Calcule e classifique o IMC (Abaixo do peso / Normal / Sobrepeso / Obesidade).",hint:"IMC = peso / (altura**2). Use if/elif para classificar.",xp:30},
-            {id:2,level:"Iniciante",title:"Tabuada Automática",desc:"Gere a tabuada de 1 a 10 de qualquer número usando for.",hint:"for num in range(1,11): print(f'{n} x {num} = {n*num}')",xp:25},
-            {id:3,level:"Iniciante",title:"Par ou Ímpar",desc:"Função que recebe uma lista de números e separa em pares e ímpares.",hint:"num % 2 == 0 → par. Use list comprehension.",xp:25},
-            {id:4,level:"Intermediário",title:"Estatísticas de Salários",desc:"Calcule média, mediana, max, min e variância de uma lista de salários sem bibliotecas.",hint:"Ordene a lista para mediana. Variância = média dos quadrados das diferenças.",xp:50},
-            {id:5,level:"Intermediário",title:"Filtro de Funcionários",desc:"Filtre funcionários (lista de dicts) com salário > 5000 e departamento 'TI' ou 'Dados'.",hint:"[f for f in lista if f['sal']>5000 and f['dept'] in ['TI','Dados']]",xp:50},
-            {id:6,level:"Intermediário",title:"Relatório de Vendas",desc:"Agrupe lista de vendas por mês e calcule total, qtd e ticket médio.",hint:"Use dicionários para acumular. {mes: {total, qtd}}",xp:55},
-            {id:7,level:"Avançado",title:"Análise com Pandas",desc:"Carregue dados de vendas e calcule: total/categoria, top produto, variação mensal.",hint:"df.groupby('cat').agg({'valor':['sum','mean','count']})",xp:80},
-            {id:8,level:"Avançado",title:"Mini ETL Pipeline",desc:"Construa extract() → transform() → load() para processar dados fictícios.",hint:"Cada função tem responsabilidade única. transform() normaliza e filtra.",xp:90},
-        ];
-
-        const SQL_EX = [
-            {id:1,level:"Iniciante",title:"SELECT com colunas",desc:"Selecione nome, categoria e preço de produtos, ordenados por preço desc.",hint:"SELECT nome, categoria, preco FROM produtos ORDER BY preco DESC",xp:20},
-            {id:2,level:"Iniciante",title:"Filtrar Produtos",desc:"Produtos com preço acima de R$300 da categoria Tech.",hint:"WHERE preco > 300 AND categoria = 'Tech'",xp:25},
-            {id:3,level:"Iniciante",title:"Top 3 Mais Caros",desc:"Os 3 produtos mais caros (nome e preço).",hint:"ORDER BY preco DESC LIMIT 3",xp:25},
-            {id:4,level:"Intermediário",title:"Total por Categoria",desc:"Total de vendas e quantidade por categoria.",hint:"GROUP BY categoria com SUM e COUNT",xp:45},
-            {id:5,level:"Intermediário",title:"Melhor Vendedor",desc:"Vendedor com maior faturamento total.",hint:"GROUP BY vendedor + SUM(valor) + ORDER BY + LIMIT 1",xp:50},
-            {id:6,level:"Intermediário",title:"Acima da Média",desc:"Produtos com preço acima da média geral.",hint:"WHERE preco > (SELECT AVG(preco) FROM produtos)",xp:60},
-            {id:7,level:"Avançado",title:"Análise por Vendedor",desc:"Faturamento, qtd de vendas e ticket médio por vendedor.",hint:"GROUP BY vendedor com SUM, COUNT, AVG",xp:70},
-            {id:8,level:"Avançado",title:"Clientes Premium",desc:"Quantos clientes de cada plano existem?",hint:"GROUP BY plano com COUNT(*) FROM clientes",xp:65},
-        ];
-
-        // ── CONTEXTOS INTEGRADOS ────────────────────────────────────
-        const AuthCtx = createContext(null);
+        // ── CONTEXTOS ───────────────────────────────────────────────
         const ProgCtx = createContext(null);
-
-        // Usuário fixo para manter compatibilidade com DB sem login
-        const FIXED_USER = { id: "master-user", name: "Estudante de Dados" };
-
-        function AuthProvider({children}) {
-            const [user,setUser] = useState(FIXED_USER);
-            const [loading,setLoading] = useState(false);
-            const logout=()=>{ alert("Seu progresso é salvo automaticamente neste navegador."); };
-            return <AuthCtx.Provider value={{user,loading,logout}}>{children}</AuthCtx.Provider>;
-        }
+        const FIXED_USER_ID = "master-coder";
 
         function ProgressProvider({children}) {
-            const {user}=useContext(AuthCtx);
-            const [progress,setProgress]=useState(null);
-            useEffect(()=>{ if(user) setProgress(DB.progress(user.id)); },[user]);
+            const [progress, setProgress] = useState(DB.progress(FIXED_USER_ID));
 
-            const save=useCallback((upd)=>{
-                if(!user) return null;
-                const cur=DB.progress(user.id);
-                const updated={...cur,...upd}; updated.level=calcLevel(updated.xp);
-                DB.setProgress(user.id,updated); setProgress({...updated}); return updated;
-            },[user]);
-
-            const completeDay=useCallback((dayNum,xpAmt)=>{
-                if(!user) return;
-                const cur=DB.progress(user.id);
-                if(cur.completedDays.includes(dayNum)) return;
-                const days=[...cur.completedDays,dayNum], newXP=cur.xp+xpAmt;
-                const today=new Date().toDateString();
-                save({completedDays:days,xp:newXP,lastStudy:today});
-            },[user,save]);
-
-            const addXP=useCallback((amt)=>{
-                if(!user) return;
-                const cur=DB.progress(user.id);
-                save({xp:cur.xp+amt});
-            },[user,save]);
-
-            return <ProgCtx.Provider value={{progress,save,completeDay,addXP}}>{children}</ProgCtx.Provider>;
-        }
-
-        const useAuth=()=>useContext(AuthCtx);
-        const useProgress=()=>useContext(ProgCtx);
-
-        // ── UI PRIMITIVES INTEGRAL ──────────────────────────────────
-        const C = { bg:"#020817", surface:"#0a1628", card:"#0f172a", border:"#1e293b", text:"#e2e8f0", muted:"#64748b", accent:"#6366f1", yellow:"#f59e0b", red:"#ef4444", green:"#10b981", blue:"#3b82f6" };
-
-        const XPBar = ({xp,level}) => {
-            const lo=xpForLevel(level), hi=xpForNext(level);
-            const pct=Math.min(100,((xp-lo)/(hi-lo))*100);
-            return (
-                <div style={{width:"100%"}}>
-                    <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:C.muted,marginBottom:4}}>
-                        <span>Nível {level}</span><span>{xp} XP</span>
-                    </div>
-                    <div style={{background:C.border,borderRadius:999,height:7}}>
-                        <div style={{width:`${pct}%`,background:"linear-gradient(90deg,#6366f1,#8b5cf6)",height:"100%",borderRadius:999,transition:"width 0.7s"}}/>
-                    </div>
-                </div>
-            );
-        };
-
-        const Btn = ({children,onClick,v="primary",sx={}}) => {
-            const vs={
-                primary:{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",border:"none"},
-                secondary:{background:C.card,color:C.text,border:`1px solid ${C.border}`},
-                success:{background:C.green,color:"#fff",border:"none"}
+            const save = (upd) => {
+                const updated = { ...progress, ...upd };
+                updated.level = calcLevel(updated.xp);
+                DB.setProgress(FIXED_USER_ID, updated);
+                setProgress(updated);
             };
-            return <button onClick={onClick} style={{padding:"10px 20px",borderRadius:8,fontWeight:700,cursor:"pointer",...vs[v],...sx}}>{children}</button>;
-        };
 
-        const Card = ({children,sx={}}) => <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,padding:22,...sx}}>{children}</div>;
-        const Badge = ({text,color=C.accent}) => <span style={{background:color+"22",color,padding:"2px 8px",borderRadius:999,fontSize:11,fontWeight:700,border:`1px solid ${color}44`}}>{text}</span>;
+            const completeDay = (dayNum, xp) => {
+                if(progress.completedDays.includes(dayNum)) return;
+                save({
+                    completedDays: [...progress.completedDays, dayNum],
+                    xp: progress.xp + xp,
+                    streak: progress.streak + 1
+                });
+            };
 
-        // ── PÁGINAS INTEGRAIS ───────────────────────────────────────
+            return <ProgCtx.Provider value={{progress, save, completeDay}}>{children}</ProgCtx.Provider>;
+        }
 
+        // ── UI COMPONENTS ────────────────────────────────────────────
+        const C = { bg:"#020817", surface:"#0a1628", card:"#0f172a", border:"#1e293b", accent:"#6366f1", muted:"#64748b", green:"#10b981", yellow:"#f59e0b" };
+
+        const Card = ({children, sx={}}) => <div style={{background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:22, ...sx}}>{children}</div>;
+        const Badge = ({text, color=C.accent}) => <span style={{background:color+"22", color, padding:"4px 10px", borderRadius:999, fontSize:11, fontWeight:700, border:`1px solid ${color}44`}}>{text}</span>;
+        const Btn = ({children, onClick, v="primary", sx={}}) => (
+            <button onClick={onClick} style={{
+                padding:"12px 24px", borderRadius:10, border:"none", fontWeight:700, cursor:"pointer",
+                background: v==="primary" ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : C.surface, color:"#fff", ...sx
+            }}>{children}</button>
+        );
+
+        // ── DASHBOARD ────────────────────────────────────────────────
         function Dashboard({go}) {
-            const {progress}=useProgress();
-            if(!progress) return null;
-            const dayNum=progress.completedDays.length+1;
+            const {progress} = useContext(ProgCtx);
+            const pct = Math.round((progress.completedDays.length / 90) * 100);
             return (
-                <div style={{maxWidth:1100,margin:"0 auto",display:"flex",flexDirection:"column",gap:20,animation:"fadeIn 0.5s"}}>
-                    <div style={{background:"linear-gradient(135deg,#1e1b4b,#1a2744)",border:`1px solid ${C.border}`,borderRadius:18,padding:30}}>
-                        <h2 style={{fontFamily:"'Syne'",fontSize:28,marginBottom:10}}>Olá, Explorador! 👋</h2>
-                        <p style={{color:C.muted}}>Você está no <strong>Dia {dayNum}</strong> da sua jornada de dados.</p>
-                        <div style={{display:"flex",gap:10,marginTop:20}}>
-                            <Btn onClick={()=>go("journey")}>Continuar Jornada</Btn>
-                            <Btn v="secondary" onClick={()=>go("profile")}>Backup de Dados</Btn>
+                <div style={{maxWidth:1000, margin:"0 auto", display:"flex", flexDirection:"column", gap:20, animation:"fadeIn 0.5s"}}>
+                    <div style={{background:"linear-gradient(135deg,#1e1b4b,#1a2744)", borderRadius:18, padding:30, border:`1px solid ${C.border}`}}>
+                        <h2 style={{fontFamily:"'Syne'", fontSize:32, marginBottom:10}}>Olá, Aluno! ⚡</h2>
+                        <p style={{color:C.muted}}>Seu progresso na trilha de dados: <strong>{pct}%</strong> concluído.</p>
+                        <div style={{display:"flex", gap:10, marginTop:20}}>
+                            <Btn onClick={()=>go("journey")}>🗺️ Ir para Missões</Btn>
+                            <Btn v="secondary" onClick={()=>go("profile")}>💾 Salvar Backup</Btn>
                         </div>
                     </div>
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px, 1fr))",gap:15}}>
-                        <Card><h4>Nível {progress.level}</h4><XPBar xp={progress.xp} level={progress.level}/></Card>
-                        <Card><h4>Streak</h4><p style={{fontSize:24,fontWeight:900,color:C.yellow}}>🔥 {progress.streak} dias</p></Card>
-                        <Card><h4>XP Total</h4><p style={{fontSize:24,fontWeight:900,color:C.accent}}>⚡ {progress.xp}</p></Card>
+                    <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))", gap:15}}>
+                        <Card><h4>Nível {progress.level}</h4><p style={{fontSize:24, fontWeight:900, color:C.accent}}>{progress.xp} XP</p></Card>
+                        <Card><h4>Sequência</h4><p style={{fontSize:24, fontWeight:900, color:C.yellow}}>🔥 {progress.streak} dias</p></Card>
+                        <Card><h4>Missões</h4><p style={{fontSize:24, fontWeight:900, color:C.green}}>{progress.completedDays.length} / 90</p></Card>
                     </div>
                 </div>
             );
         }
 
+        // ── JOURNEY (SISTEMA DE APRENDIZADO INTEGRADO) ───────────────
         function Journey() {
-            const {progress,completeDay}=useProgress();
-            const [sel,setSel]=useState(null);
-            const curDay=progress?progress.completedDays.length+1:1;
+            const {progress, completeDay} = useContext(ProgCtx);
+            const [sel, setSel] = useState(null);
+            const curDay = progress.completedDays.length + 1;
 
-            if(sel) return (
-                <div style={{maxWidth:700,margin:"0 auto",animation:"fadeIn 0.3s"}}>
-                    <button onClick={()=>setSel(null)} style={{background:"none",border:"none",color:C.accent,cursor:"pointer",marginBottom:20}}>← Voltar</button>
-                    <Card>
-                        <div style={{display:"flex",justifyContent:"space-between",marginBottom:20}}>
-                            <Badge text={`Dia ${sel.day}`}/>
-                            <Badge text={`+${sel.xp} XP`} color={C.green}/>
+            if (sel) return (
+                <div style={{maxWidth:800, margin:"0 auto", animation:"fadeIn 0.3s"}}>
+                    <button onClick={()=>setSel(null)} style={{background:"none", border:"none", color:C.accent, cursor:"pointer", marginBottom:20, fontWeight:700}}>← VOLTAR PARA O MAPA</button>
+                    <Card sx={{border:`1px solid ${C.accent}44`}}>
+                        <div style={{display:"flex", justifyContent:"space-between", marginBottom:20}}>
+                            <Badge text={`DIA ${sel.day}`} />
+                            <Badge text={`+${sel.xp} XP`} color={C.green} />
                         </div>
-                        <h2 style={{fontFamily:"'Syne'",marginBottom:15}}>{sel.title}</h2>
-                        <p style={{lineHeight:1.6,marginBottom:20}}>{sel.mission}</p>
-                        <div style={{background:C.surface,padding:15,borderRadius:10,marginBottom:20}}>
-                            <h4 style={{marginBottom:10,color:C.accent}}>Microtarefas:</h4>
-                            {sel.tasks.map((t,i)=><div key={i} style={{marginBottom:5}}>• {t}</div>)}
+                        <h2 style={{fontFamily:"'Syne'", fontSize:28, marginBottom:20}}>{sel.title}</h2>
+                        
+                        <div style={{marginBottom:30}}>
+                            <h4 style={{color:C.accent, marginBottom:10, textTransform:"uppercase", fontSize:13}}>🎯 Objetivo da Missão</h4>
+                            <p style={{fontSize:16, lineHeight:1.7}}>{sel.mission}</p>
                         </div>
+
+                        <div style={{marginBottom:30, background:C.surface, padding:20, borderRadius:12}}>
+                            <h4 style={{color:C.yellow, marginBottom:15, textTransform:"uppercase", fontSize:13}}>📖 Material de Estudo</h4>
+                            <div style={{lineHeight:1.8}}>{sel.guide}</div>
+                        </div>
+
+                        <div style={{marginBottom:30}}>
+                            <h4 style={{color:C.accent, marginBottom:15, textTransform:"uppercase", fontSize:13}}>✅ Microtarefas do Dia</h4>
+                            {sel.tasks.map((t, i) => (
+                                <div key={i} style={{display:"flex", alignItems:"center", gap:10, marginBottom:10, background:"#ffffff05", padding:10, borderRadius:8}}>
+                                    <div style={{width:20, height:20, border:`2px solid ${C.accent}`, borderRadius:4}} />
+                                    <span>{t}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div style={{marginBottom:30}}>
+                            <h4 style={{color:C.accent, marginBottom:10, textTransform:"uppercase", fontSize:13}}>🔗 Recursos Externos</h4>
+                            <div style={{display:"flex", flexDirection:"column", gap:8}}>
+                                {sel.links.map((l, i) => (
+                                    <a key={i} href={l.url} target="_blank" rel="noreferrer">🌍 {l.label}</a>
+                                ))}
+                            </div>
+                        </div>
+
                         {progress.completedDays.includes(sel.day) 
-                            ? <div style={{color:C.green,fontWeight:800,textAlign:"center"}}>✅ Concluído!</div>
-                            : <Btn sx={{width:"100%"}} onClick={()=>{completeDay(sel.day,sel.xp);setSel(null);}}>Marcar como Concluído</Btn>
+                            ? <div style={{background:C.green+"22", color:C.green, padding:20, borderRadius:12, textAlign:"center", fontWeight:800}}>MISSÃO CUMPRIDA! VOCÊ JÁ GANHOU ESTE XP.</div>
+                            : <Btn sx={{width:"100%", fontSize:18}} onClick={()=>{completeDay(sel.day, sel.xp); setSel(null);}}>CONCLUIR MISSÃO E GANHAR XP</Btn>
                         }
                     </Card>
                 </div>
@@ -373,20 +232,21 @@
 
             return (
                 <div style={{animation:"fadeIn 0.5s"}}>
-                    <h2 style={{fontFamily:"'Syne'",marginBottom:20}}>Mapa da Jornada</h2>
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:10}}>
+                    <h2 style={{fontFamily:"'Syne'", marginBottom:30}}>Mapa da Jornada 90 Dias</h2>
+                    <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(140px, 1fr))", gap:15}}>
                         {DAY_DATA.map(d => {
-                            const done=progress.completedDays.includes(d.day);
-                            const locked=d.day > curDay;
+                            const done = progress.completedDays.includes(d.day);
+                            const locked = d.day > curDay;
                             return (
-                                <div key={d.day} onClick={()=>!locked && setSel(d)} style={{
-                                    padding:15, borderRadius:12, textAlign:"center", cursor:locked?"not-allowed":"pointer",
-                                    background:done?C.green+"22":locked?C.surface:C.card,
-                                    border:`1px solid ${done?C.green:C.border}`, opacity:locked?0.4:1
+                                <div key={d.day} onClick={()=> !locked && setSel(d)} style={{
+                                    padding:20, borderRadius:16, textAlign:"center", cursor:locked ? "not-allowed" : "pointer",
+                                    background: done ? C.green+"11" : locked ? C.surface : C.card,
+                                    border: `2px solid ${done ? C.green : locked ? C.border : C.accent}`,
+                                    opacity: locked ? 0.4 : 1, transition: "0.2s"
                                 }}>
-                                    <div style={{fontSize:10,color:C.muted}}>DIA</div>
-                                    <div style={{fontSize:20,fontWeight:900}}>{d.day}</div>
-                                    {done && <div style={{fontSize:10}}>✓</div>}
+                                    <div style={{fontSize:11, color:C.muted, fontWeight:800}}>DIA</div>
+                                    <div style={{fontSize:28, fontWeight:900, margin:"5px 0"}}>{d.day}</div>
+                                    {done ? <Badge text="OK" color={C.green} /> : locked ? <span>🔒</span> : <Badge text="LIVE" color={C.accent} />}
                                 </div>
                             );
                         })}
@@ -395,120 +255,62 @@
             );
         }
 
-        function SQLConsole() {
-            const [q,setQ]=useState("SELECT * FROM produtos;");
-            const [res,setRes]=useState(null);
-            return (
-                <div style={{maxWidth:900,margin:"0 auto",animation:"fadeIn 0.5s"}}>
-                    <Card>
-                        <h2 style={{fontFamily:"'Syne'",marginBottom:15}}>SQL Sandbox</h2>
-                        <textarea value={q} onChange={e=>setQ(e.target.value)} style={{width:"100%",height:100,background:"#000",color:C.green,padding:15,fontFamily:"monospace",borderRadius:8,border:"none"}}/>
-                        <Btn sx={{marginTop:15}} onClick={()=>setRes(runSQL(q))}>Executar</Btn>
-                    </Card>
-                    {res && (
-                        <Card sx={{marginTop:20,overflowX:"auto"}}>
-                            {res.error ? <span style={{color:C.red}}>{res.error}</span> : (
-                                <table style={{width:"100%",borderCollapse:"collapse"}}>
-                                    <thead><tr>{Object.keys(res.rows[0]||{}).map(k=><th key={k} style={{textAlign:"left",padding:10,borderBottom:`1px solid ${C.border}`}}>{k}</th>)}</tr></thead>
-                                    <tbody>{res.rows.map((r,i)=><tr key={i}>{Object.values(r).map((v,j)=><td key={j} style={{padding:10}}>{String(v)}</td>)}</tr>)}</tbody>
-                                </table>
-                            )}
-                        </Card>
-                    )}
-                </div>
-            );
-        }
-
-        function ProfileBackup() {
-            const exportData = () => {
-                const data = {
-                    progress: DB.progress(FIXED_USER.id),
-                    notes: DB.notes(FIXED_USER.id),
-                    resume: DB.resume(FIXED_USER.id)
-                };
+        // ── PROFILE (BACKUP) ────────────────────────────────────────
+        function Profile() {
+            const {progress} = useContext(ProgCtx);
+            const exportBackup = () => {
+                const data = { progress, timestamp: new Date().toISOString() };
                 const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'datapath_save.json';
+                a.download = `datapath_backup.json`;
                 a.click();
             };
-
-            const importData = (e) => {
-                const file = e.target.files[0];
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const data = JSON.parse(event.target.result);
-                    DB.setProgress(FIXED_USER.id, data.progress);
-                    DB.setNotes(FIXED_USER.id, data.notes);
-                    DB.setResume(FIXED_USER.id, data.resume);
-                    alert("Dados restaurados! A página irá atualizar.");
-                    window.location.reload();
-                };
-                reader.readAsText(file);
-            };
-
             return (
-                <div style={{maxWidth:600,margin:"0 auto",animation:"fadeIn 0.5s"}}>
-                    <Card>
-                        <h2 style={{fontFamily:"'Syne'",marginBottom:20}}>Backup e Sincronização</h2>
-                        <p style={{color:C.muted,marginBottom:20}}>Como não há login, use estas opções para transferir seu progresso entre computadores.</p>
-                        <div style={{display:"flex",flexDirection:"column",gap:15}}>
-                            <Btn onClick={exportData}>Baixar Arquivo de Progresso (.json)</Btn>
-                            <div style={{marginTop:20}}>
-                                <label style={{display:"block",marginBottom:10,fontWeight:700}}>Carregar Progresso:</label>
-                                <input type="file" accept=".json" onChange={importData} />
-                            </div>
-                        </div>
+                <div style={{maxWidth:600, margin:"0 auto", animation:"fadeIn 0.5s"}}>
+                    <Card sx={{textAlign:"center"}}>
+                        <h2 style={{fontFamily:"'Syne'", marginBottom:20}}>💾 Gerenciar Progresso</h2>
+                        <p style={{color:C.muted, marginBottom:30}}>Seu progresso é salvo no navegador. Para não perder seus dados ao trocar de computador, baixe seu backup.</p>
+                        <Btn onClick={exportBackup}>📥 Baixar Arquivo de Backup (.json)</Btn>
                     </Card>
                 </div>
             );
         }
 
-        // ── APP SHELL E NAVEGAÇÃO ───────────────────────────────────
-
+        // ── APP SHELL ────────────────────────────────────────────────
         function AppShell() {
-            const [page,setPage]=useState("dashboard");
+            const [page, setPage] = useState("dashboard");
             const nav = [
-                {id:"dashboard",i:"🏠",l:"Início"},
-                {id:"journey",i:"🗺️",l:"Jornada"},
-                {id:"sql",i:"🗄️",l:"SQL Sandbox"},
-                {id:"profile",i:"👤",l:"Backup"}
+                {id:"dashboard", i:"🏠", l:"Dashboard"},
+                {id:"journey", i:"🗺️", l:"Jornada"},
+                {id:"profile", i:"💾", l:"Backup"}
             ];
-
             return (
-                <div style={{display:"flex",minHeight:"100vh"}}>
-                    <aside style={{width:250,background:C.surface,padding:25,borderRight:`1px solid ${C.border}`}}>
-                        <h2 style={{fontFamily:"'Syne'",color:C.accent,marginBottom:40}}>DATAPATH ⚡</h2>
-                        <nav style={{display:"flex",flexDirection:"column",gap:10}}>
+                <div style={{display:"flex", minHeight:"100vh"}}>
+                    <aside style={{width:260, background:C.surface, padding:25, borderRight:`1px solid ${C.border}`, position:"fixed", height:"100vh"}}>
+                        <h2 style={{fontFamily:"'Syne'", color:C.accent, fontSize:24, marginBottom:40, letterSpacing:-1}}>DATAPATH ⚡</h2>
+                        <nav style={{display:"flex", flexDirection:"column", gap:10}}>
                             {nav.map(n => (
                                 <button key={n.id} onClick={()=>setPage(n.id)} style={{
-                                    textAlign:"left",padding:12,borderRadius:10,background:page===n.id?C.accent+"15":"none",
-                                    border:"none",color:page===n.id?C.accent:C.muted,cursor:"pointer",fontWeight:700
-                                }}>{n.i} {n.l}</button>
+                                    textAlign:"left", padding:14, borderRadius:12, background: page === n.id ? C.accent+"22" : "none",
+                                    border:"none", color: page === n.id ? C.accent : C.muted, cursor:"pointer", fontWeight:700, fontSize:15
+                                }}>{n.i} &nbsp; {n.l}</button>
                             ))}
                         </nav>
                     </aside>
-                    <main style={{flex:1,padding:40,overflowY:"auto",maxHeight:"100vh"}}>
-                        {page==="dashboard" && <Dashboard go={setPage}/>}
-                        {page==="journey" && <Journey />}
-                        {page==="sql" && <SQLConsole />}
-                        {page==="profile" && <ProfileBackup />}
+                    <main style={{flex:1, padding:40, marginLeft:260}}>
+                        {page === "dashboard" && <Dashboard go={setPage} />}
+                        {page === "journey" && <Journey />}
+                        {page === "profile" && <Profile />}
                     </main>
                 </div>
             );
         }
 
-        // ── PONTO DE ENTRADA ────────────────────────────────────────
-
+        // ── RENDER ──────────────────────────────────────────────────
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(
-            <AuthProvider>
-                <ProgressProvider>
-                    <AppShell />
-                </ProgressProvider>
-            </AuthProvider>
-        );
+        root.render(<ProgressProvider><AppShell /></ProgressProvider>);
     </script>
 </body>
 </html>
