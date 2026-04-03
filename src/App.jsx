@@ -35,20 +35,22 @@ const RL = { _a: {}, check(k, max=5, win=900000) {
 
 // ── CORES (CORRIGIDAS PARA ALTO CONTRASTE) ─────────────────────
 const C = {
-  bg: "#050507",        // Fundo quase preto (máximo contraste)
-  surface: "#111827",   // Azul marinho muito escuro para áreas de destaque
-  card: "#1f2937",      // Cinza azulado escuro para cards (visível sobre o fundo)
-  border: "#374151",    // Borda clara para separar os elementos
-  border2: "#4b5563",
-  text: "#f9fafb",      // Branco puro para leitura
-  muted: "#9ca3af",     // Cinza para textos secundários
-  faint: "#6b7280",
-  accent: "#6366f1",    // Indigo (Destaque principal)
-  accent2: "#a855f7",   // Roxo (Conquistas)
-  green: "#10b981", 
-  yellow: "#f59e0b", 
-  red: "#ef4444", 
-  blue: "#3b82f6",
+  bg: "#02040a",        // Preto quase total (acaba com o "tudo azul")
+  surface: "#0d1117",   // Azul marinho muito escuro para secções
+  card: "#161b22",      // Cinza azulado para os cards (agora eles vão aparecer!)
+  border: "#30363d",    // Borda visível para separar os elementos
+  border2: "#484f58",
+  text: "#ffffff",      // Branco puro
+  muted: "#8b949e",     // Cinza para textos menos importantes
+  faint: "#484f58",
+  accent: "#58a6ff",    // Azul brilhante para botões
+  accent2: "#bc8cff",   // Roxo para destaques
+  green: "#39d353", 
+  yellow: "#f0883e", 
+  red: "#ff7b72", 
+  blue: "#58a6ff",
+};
+
 };
 
 // ── BANCO DE DADOS (LOCALSTORAGE) ─────────────────────────────
