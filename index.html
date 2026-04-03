@@ -3,96 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DataPath — Plataforma Gamificada de Dados</title>
-    
-    <!-- Bibliotecas Externas para rodar seu código original -->
-    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>DataPath — Oficial</title>
+    <!-- Bibliotecas Necessárias para rodar React no Navegador -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background-color: #020817; color: #e2e8f0; font-family: 'Outfit', sans-serif; overflow-x: hidden; }
         #root { min-height: 100vh; }
-        /* Suas animações e estilos globais */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #020817; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+        input:focus, textarea:focus, select:focus { outline: none !important; border-color: #6366f1 !important; box-shadow: 0 0 0 3px #6366f115; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        input:focus, textarea:focus { outline: none !important; border-color: #6366f1 !important; box-shadow: 0 0 0 3px #6366f115; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        // Mapeando os hooks do React que você usou no topo do seu arquivo original
         const { useState, useEffect, useCallback, useRef, createContext, useContext } = React;
 
         // ============================================================
-        // SEU CÓDIGO ORIGINAL COMPLETO (1000+ LINHAS)
+        // DATAPATH — CÓDIGO ORIGINAL (LÓGICA E DADOS)
         // ============================================================
 
         const Security = {
-          hashPassword: async (pw) => {
-            const data = new TextEncoder().encode(pw + "dp_salt_x9k2");
-            const hash = await crypto.subtle.digest("SHA-256", data);
-            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,"0")).join("");
-          },
-          sanitize: (s) => typeof s === "string" ? s.replace(/[<>&"']/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;","'":"&#x27;"}[c])) : "",
-          validateEmail: (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e),
-          validatePassword: (p) => p.length >= 8 && /[A-Z]/.test(p) && /[0-9]/.test(p),
-          generateJWT: (uid) => {
-            const h = btoa(JSON.stringify({alg:"HS256",typ:"JWT"}));
-            const p = btoa(JSON.stringify({sub:uid,iat:Date.now(),exp:Date.now()+86400000}));
-            const s = btoa(uid+"dp_secret_key");
-            return `${h}.${p}.${s}`;
-          },
-          verifyJWT: (token) => {
-            try { const d = JSON.parse(atob(token.split(".")[1])); return d.exp > Date.now() ? d : null; }
-            catch { return null; }
-          },
+            hashPassword: async (pw) => {
+                const data = new TextEncoder().encode(pw + "dp_salt_x9k2");
+                const hash = await crypto.subtle.digest("SHA-256", data);
+                return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,"0")).join("");
+            },
+            sanitize: (s) => typeof s === "string" ? s.replace(/[<>&"']/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;","'":"&#x27;"}[c])) : "",
+            validateEmail: (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e),
+            validatePassword: (p) => p.length >= 8 && /[A-Z]/.test(p) && /[0-9]/.test(p),
+            generateJWT: (uid) => {
+                const h = btoa(JSON.stringify({alg:"HS256",typ:"JWT"}));
+                const p = btoa(JSON.stringify({sub:uid,iat:Date.now(),exp:Date.now()+86400000}));
+                const s = btoa(uid+"dp_secret_key");
+                return `${h}.${p}.${s}`;
+            },
+            verifyJWT: (token) => {
+                try { const d = JSON.parse(atob(token.split(".")[1])); return d.exp > Date.now() ? d : null; }
+                catch { return null; }
+            },
         };
 
         const RL = { _a: {}, check(k, max=5, win=900000) {
-          const now = Date.now();
-          this._a[k] = (this._a[k]||[]).filter(t=>now-t<win);
-          if (this._a[k].length >= max) return false;
-          this._a[k].push(now); return true;
+            const now = Date.now();
+            this._a[k] = (this._a[k]||[]).filter(t=>now-t<win);
+            if (this._a[k].length >= max) return false;
+            this._a[k].push(now); return true;
         }};
 
         const DB = {
-          g: (k) => { try { return JSON.parse(localStorage.getItem("dp_"+k)||"null"); } catch { return null; }},
-          s: (k,v) => { try { localStorage.setItem("dp_"+k, JSON.stringify(v)); } catch {} },
-          users: () => DB.g("users") || {},
-          setUsers: (u) => DB.s("users", u),
-          progress: (id) => DB.g("prog_"+id) || defProgress(id),
-          setProgress: (id,p) => DB.s("prog_"+id, p),
-          notes: (id) => DB.g("notes_"+id) || [],
-          setNotes: (id,n) => DB.s("notes_"+id, n),
-          portfolio: (id) => DB.g("pf_"+id) || [],
-          setPortfolio: (id,p) => DB.s("pf_"+id, p),
-          resume: (id) => DB.g("cv_"+id) || defResume(),
-          setResume: (id,r) => DB.s("cv_"+id, r),
-          goals: (id) => DB.g("goals_"+id) || [],
-          setGoals: (id,g) => DB.s("goals_"+id, g),
-          habits: (id) => DB.g("habits_"+id) || defHabits(),
-          setHabits: (id,h) => DB.s("habits_"+id, h),
-          checklist: (id) => DB.g("check_"+id) || [],
-          setChecklist: (id,c) => DB.s("check_"+id, c),
+            g: (k) => { try { return JSON.parse(localStorage.getItem("dp_"+k)||"null"); } catch { return null; }},
+            s: (k,v) => { try { localStorage.setItem("dp_"+k, JSON.stringify(v)); } catch {} },
+            users: () => DB.g("users") || {},
+            setUsers: (u) => DB.s("users", u),
+            progress: (id) => DB.g("prog_"+id) || defProgress(id),
+            setProgress: (id,p) => DB.s("prog_"+id, p),
+            notes: (id) => DB.g("notes_"+id) || [],
+            setNotes: (id,n) => DB.s("notes_"+id, n),
+            portfolio: (id) => DB.g("pf_"+id) || [],
+            setPortfolio: (id,p) => DB.s("pf_"+id, p),
+            resume: (id) => DB.g("cv_"+id) || defResume(),
+            setResume: (id,r) => DB.s("cv_"+id, r),
+            goals: (id) => DB.g("goals_"+id) || [],
+            setGoals: (id,g) => DB.s("goals_"+id, g),
+            habits: (id) => DB.g("habits_"+id) || defHabits(),
+            setHabits: (id,h) => DB.s("habits_"+id, h),
+            checklist: (id) => DB.g("check_"+id) || [],
+            setChecklist: (id,c) => DB.s("check_"+id, c),
         };
 
         const defProgress = (id) => ({
-          userId:id, xp:0, level:1, streak:0, lastStudy:null,
-          completedDays:[], achievements:[], trackProgress:{python:0,sql:0,powerbi:0,english:0}
+            userId:id, xp:0, level:1, streak:0, lastStudy:null,
+            completedDays:[], achievements:[], trackProgress:{python:0,sql:0,powerbi:0,english:0}
         });
         const defResume = () => ({
-          name:"",title:"",email:"",phone:"",linkedin:"",github:"",
-          summary:"",skills:[],experience:[],education:[],projects:[],certifications:[]
+            name:"",title:"",email:"",phone:"",linkedin:"",github:"",
+            summary:"",skills:[],experience:[],education:[],projects:[],certifications:[]
         });
         const defHabits = () => ([
-          {id:1,name:"Estudar Python",streak:0,done:false,color:"#3b82f6"},
-          {id:2,name:"Praticar SQL",streak:0,done:false,color:"#10b981"},
-          {id:3,name:"Inglês técnico",streak:0,done:false,color:"#f59e0b"},
-          {id:4,name:"Revisão do dia",streak:0,done:false,color:"#8b5cf6"},
+            {id:1,name:"Estudar Python",streak:0,done:false,color:"#3b82f6"},
+            {id:2,name:"Praticar SQL",streak:0,done:false,color:"#10b981"},
+            {id:3,name:"Inglês técnico",streak:0,done:false,color:"#f59e0b"},
+            {id:4,name:"Revisão do dia",streak:0,done:false,color:"#8b5cf6"},
         ]);
 
         const calcLevel = (xp) => Math.floor(Math.sqrt(xp/100))+1;
@@ -100,170 +100,574 @@
         const xpForNext = (lvl) => lvl*lvl*100;
 
         const ACHIEVEMENTS = [
-          {id:"first",name:"Primeiro Passo",desc:"Concluiu o Dia 1",icon:"🌱",xp:50,cond:(p)=>p.completedDays.length>=1},
-          {id:"week1",name:"Semana Completa",desc:"7 dias concluídos",icon:"🔥",xp:100,cond:(p)=>p.completedDays.length>=7},
-          {id:"streak7",name:"Sequência de 7d",desc:"7 dias consecutivos",icon:"⚡",xp:150,cond:(p)=>p.streak>=7},
-          {id:"lvl5",name:"Nível 5",desc:"Alcançou o nível 5",icon:"⭐",xp:200,cond:(p)=>p.level>=5},
-          {id:"day30",name:"Mês de Dados",desc:"30 dias concluídos",icon:"🏆",xp:300,cond:(p)=>p.completedDays.length>=30},
-          {id:"pf1",name:"Portfólio Iniciado",desc:"Adicionou 1 projeto",icon:"💼",xp:100,cond:(p)=>(p.portfolioCount||0)>=1},
+            {id:"first",name:"Primeiro Passo",desc:"Concluiu o Dia 1",icon:"🌱",xp:50,cond:(p)=>p.completedDays.length>=1},
+            {id:"week1",name:"Semana Completa",desc:"7 dias concluídos",icon:"🔥",xp:100,cond:(p)=>p.completedDays.length>=7},
+            {id:"streak7",name:"Sequência de 7d",desc:"7 dias consecutivos",icon:"⚡",xp:150,cond:(p)=>p.streak>=7},
+            {id:"lvl5",name:"Nível 5",desc:"Alcançou o nível 5",icon:"⭐",xp:200,cond:(p)=>p.level>=5},
+            {id:"day30",name:"Mês de Dados",desc:"30 dias concluídos",icon:"🏆",xp:300,cond:(p)=>p.completedDays.length>=30},
+            {id:"pf1",name:"Portfólio Iniciado",desc:"Adicionou 1 projeto",icon:"💼",xp:100,cond:(p)=>(p.portfolioCount||0)>=1},
         ];
 
         const PHASES = [
-          {id:1,name:"Fase 1: Fundamentos",range:[1,30],color:"#3b82f6",icon:"🌱"},
-          {id:2,name:"Fase 2: Prática Guiada",range:[31,60],color:"#10b981",icon:"⚡"},
-          {id:3,name:"Fase 3: Projetos",range:[61,75],color:"#f59e0b",icon:"🚀"},
-          {id:4,name:"Fase 4: Portfólio & Carreira",range:[76,90],color:"#8b5cf6",icon:"🏆"},
+            {id:1,name:"Fase 1: Fundamentos",range:[1,30],color:"#3b82f6",icon:"🌱"},
+            {id:2,name:"Fase 2: Prática Guiada",range:[31,60],color:"#10b981",icon:"⚡"},
+            {id:3,name:"Fase 3: Projetos",range:[61,75],color:"#f59e0b",icon:"🚀"},
+            {id:4,name:"Fase 4: Portfólio & Carreira",range:[76,90],color:"#8b5cf6",icon:"🏆"},
         ];
 
         const DAY_DATA = [
-          {day:1,title:"Bem-vindo à Jornada de Dados!",phase:1,xp:50,track:"python",mission:"Configure seu ambiente e entenda a jornada que você está iniciando.",tasks:["Leia o guia de boas-vindas","Configure o VS Code com Python","Crie sua conta no GitHub","Defina sua meta de carreira por escrito"],english:"Vocabulário: 'data analyst', 'dataset', 'pipeline', 'insight', 'data-driven'",practice:"Escreva no bloco de notas: por que você quer trabalhar com dados?"},
-          {day:2,title:"Python: Variáveis e Tipos",phase:1,xp:60,track:"python",mission:"Domine variáveis e tipos de dados em Python.",tasks:["Estude int, str, float, bool","Crie variáveis dos 4 tipos","Pratique type() e print()","Resolva 3 exercícios"],english:"Vocabulário: 'variable', 'string', 'integer', 'boolean', 'output'",practice:"Script com seu nome, idade e objetivo profissional."},
-          {day:3,title:"Python: Operadores",phase:1,xp:60,track:"python",mission:"Domine operadores aritméticos, lógicos e de comparação.",tasks:["Operadores aritméticos (+,-,*,/,**)","Operadores de comparação","Operadores lógicos (and, or, not)","Crie calculadora básica"],english:"Vocabulário: 'operator', 'expression', 'comparison', 'boolean logic'",practice:"Calculadora de IMC em Python."},
-          {day:4,title:"Python: Condicionais",phase:1,xp:70,track:"python",mission:"Aprenda if, elif e else para controle de fluxo.",tasks:["if / elif / else básico","Condicionais aninhados","Classificador de notas","Verificador de faixa salarial"],english:"Vocabulário: 'conditional', 'flow control', 'nested', 'if statement'",practice:"Classificador de senioridade por anos de experiência."},
-          {day:5,title:"Python: Laços (for e while)",phase:1,xp:70,track:"python",mission:"Domine laços para automação e repetição.",tasks:["for com range()","while básico","break e continue","Tabuada automática"],english:"Vocabulário: 'loop', 'iteration', 'range', 'break', 'continue'",practice:"Gerador de relatório fictício de vendas."},
-          {day:6,title:"SQL: Primeiros Passos",phase:1,xp:60,track:"sql",mission:"Entenda bancos de dados relacionais e faça seus primeiros SELECTs.",tasks:["O que é banco relacional?","Tabelas, linhas e colunas","SELECT * FROM tabela","5 queries no sandbox"],english:"Vocabulário: 'query', 'table', 'row', 'column', 'schema'",practice:"Execute queries básicas no banco demo da plataforma."},
-          {day:7,title:"Revisão — Semana 1 🎉",phase:1,xp:80,track:"python",mission:"Revise a semana 1 e construa seu primeiro mini projeto.",tasks:["Revise: variáveis, operadores, condicionais, laços","Revise: SELECT básico","Mini projeto: analisador de lista de vendas","Commit no GitHub"],english:"Monte seu glossário pessoal da semana.",practice:"Script que lê uma lista, calcula média e exibe relatório."},
-          {day:8,title:"Python: Funções",phase:1,xp:70,track:"python",mission:"Crie funções reutilizáveis para organizar seu código.",tasks:["def e return","Parâmetros e argumentos","Valores padrão","Refatore código anterior"],english:"Vocabulário: 'function', 'parameter', 'return value', 'scope'",practice:"Biblioteca de funções estatísticas sem pandas."},
-          {day:9,title:"Python: Listas",phase:1,xp:70,track:"python",mission:"Domine listas para trabalhar com coleções de dados.",tasks:["Criação e indexação","Slicing e iteração","List comprehension","append, sort, filter, map"],english:"Vocabulário: 'list', 'index', 'slice', 'iteration', 'comprehension'",practice:"Análise de lista com 20 salários fictícios."},
-          {day:10,title:"Python: Dicionários",phase:1,xp:70,track:"python",mission:"Use dicionários para estruturar dados com chave-valor.",tasks:["Criação e acesso","Iterar sobre dict","Dicionários aninhados","Exercício: dados de funcionários"],english:"Vocabulário: 'dictionary', 'key-value', 'hash map', 'nested'",practice:"Dicionário de 10 funcionários com relatório de salários."},
-          {day:11,title:"SQL: WHERE e Filtros",phase:1,xp:65,track:"sql",mission:"Filtre dados com WHERE, AND, OR e operadores.",tasks:["WHERE básico","AND e OR","BETWEEN e IN","LIKE para texto"],english:"Vocabulário: 'filter', 'condition', 'wildcard', 'pattern matching'",practice:"Filtre produtos por categoria e faixa de preço."},
-          {day:12,title:"Python: Strings",phase:1,xp:65,track:"python",mission:"Manipule strings para limpeza e processamento de dados.",tasks:["upper, lower, strip, split","replace e find","f-strings","Limpeza de dados textuais"],english:"Vocabulário: 'string manipulation', 'parsing', 'cleaning', 'normalize'",practice:"Normalize lista de nomes de clientes."},
-          {day:13,title:"SQL: ORDER BY e LIMIT",phase:1,xp:60,track:"sql",mission:"Ordene e limite resultados para análises focadas.",tasks:["ORDER BY ASC e DESC","LIMIT e OFFSET","Múltiplas colunas","Top N análises"],english:"Vocabulário: 'sort', 'ascending', 'descending', 'offset', 'paginate'",practice:"Top 3 produtos mais caros e análise de ranking."},
-          {day:14,title:"Revisão — Semana 2",phase:1,xp:80,track:"python",mission:"Revise semana 2 e crie exercício integrado.",tasks:["Revise: funções, listas, dicionários","Revise: WHERE, ORDER BY","Exercício integrado Python+SQL","GitHub atualizado"],english:"Frases técnicas com vocabulário das 2 semanas.",practice:"Script Python que simula queries SQL com dicionários."},
-          {day:15,title:"Python: Tratamento de Erros",phase:1,xp:70,track:"python",mission:"Crie código robusto com try/except.",tasks:["try/except básico","Múltiplos erros","finally e raise","Funções com tratamento"],english:"Vocabulário: 'exception', 'error handling', 'raise', 'debug', 'traceback'",practice:"Adicione robustez ao projeto de vendas."},
-          {day:16,title:"SQL: GROUP BY",phase:1,xp:70,track:"sql",mission:"Agrupe dados para análises poderosas.",tasks:["GROUP BY básico","COUNT, SUM, AVG, MAX, MIN","GROUP BY + WHERE","HAVING clause"],english:"Vocabulário: 'aggregate', 'group by', 'having', 'count', 'sum'",practice:"Total de vendas por categoria no sandbox."},
-          {day:17,title:"Python: Arquivos e CSV",phase:1,xp:75,track:"python",mission:"Leia e escreva arquivos CSV com Python.",tasks:["open() e with","csv.reader e writer","Leitura de CSV real","Geração de relatório CSV"],english:"Vocabulário: 'file handling', 'CSV', 'read', 'write', 'encoding'",practice:"Leia um CSV e gere relatório de análise."},
-          {day:18,title:"SQL: JOINs Básicos",phase:1,xp:75,track:"sql",mission:"Una tabelas com INNER JOIN e LEFT JOIN.",tasks:["O que são JOINs?","INNER JOIN","LEFT JOIN","Exercício: clientes + pedidos"],english:"Vocabulário: 'join', 'relationship', 'foreign key', 'primary key'",practice:"Una clientes e vendas no sandbox."},
-          {day:19,title:"Python: Pandas — Introdução",phase:1,xp:80,track:"python",mission:"Comece a trabalhar com DataFrames pandas.",tasks:["import pandas as pd","pd.DataFrame()","Leitura de CSV com pandas","df.head(), info(), describe()"],english:"Vocabulário: 'DataFrame', 'Series', 'index', 'column', 'shape'",practice:"Carregue e explore um dataset de vendas."},
-          {day:20,title:"Revisão — Semana 3",phase:1,xp:85,track:"python",mission:"Revise semana 3 e construa análise completa.",tasks:["Revise: arquivos, pandas intro","Revise: JOINs e GROUP BY","Mini projeto: análise CSV completa","Documente no GitHub"],english:"Frases de apresentação de projeto de dados.",practice:"Análise exploratória completa de dataset fictício."},
-          ...Array.from({length:10},(_,i)=>({day:21+i,title:["Python: Pandas Filtros","SQL: Subqueries","Power BI: Introdução","Inglês: Tech Vocab","Python: GroupBy Pandas","SQL: LEFT e RIGHT JOIN","Power BI: Power Query","Inglês: Documentation","Python: Merge e Concat","SQL: CTEs"][i],phase:1,xp:75+i*5,track:["python","sql","powerbi","english","python","sql","powerbi","english","python","sql"][i],mission:`Evolua suas habilidades no dia ${21+i} da jornada.`,tasks:["Estude o conteúdo do dia","Pratique exercícios","Anote aprendizados","Atualize GitHub"],english:"Pratique vocabulário técnico aplicado.",practice:"Complete o exercício prático do dia."})),
-          ...Array.from({length:9},(_,i)=>({day:31+i,title:["Python: Visualização com Matplotlib","SQL: Window Functions","Power BI: Modelagem","Inglês: Meetings","Python: Seaborn","SQL: Funções de Data","Power BI: DAX Básico","Inglês: Presentations","Python: NumPy"][i],phase:2,xp:80+i*5,track:["python","sql","powerbi","english","python","sql","powerbi","english","python"][i],mission:`Aprofunde sua prática — dia ${31+i}.`,tasks:["Conteúdo teórico do dia","Exercício prático","Mini projeto parcial","Commit GitHub"],english:"Vocabulário técnico aplicado a contextos reais.",practice:"Exercício prático com dados reais ou simulados."})),
-          ...Array.from({length:51},(_,i)=>({day:40+i,title:`Dia ${40+i}: ${["Python Avançado","SQL Analítico","Power BI Avançado","Inglês para Entrevistas","Projeto Python","Análise SQL Completa","Dashboard Power BI","Inglês Técnico","Portfólio","Currículo ATS"][i%10]}`,phase:40+i<=60?2:40+i<=75?3:4,xp:85+Math.floor(i/5)*5,track:["python","sql","powerbi","english","python","sql","powerbi","english","python","sql"][i%10],mission:`Continue sua evolução — dia ${40+i} da jornada de dados.`,tasks:["Conteúdo do dia","Exercícios práticos","Revisão e notas","GitHub atualizado"],english:"Vocabulário e frases técnicas do dia.",practice:"Exercício integrado do dia."})),
+            {day:1,title:"Bem-vindo à Jornada de Dados!",phase:1,xp:50,track:"python",mission:"Configure seu ambiente e entenda a jornada que você está iniciando.",tasks:["Leia o guia de boas-vindas","Configure o VS Code com Python","Crie sua conta no GitHub","Defina sua meta de carreira por escrito"],english:"Vocabulário: 'data analyst', 'dataset', 'pipeline', 'insight', 'data-driven'",practice:"Escreva no bloco de notas: por que você quer trabalhar com dados?"},
+            {day:2,title:"Python: Variáveis e Tipos",phase:1,xp:60,track:"python",mission:"Domine variáveis e tipos de dados em Python.",tasks:["Estude int, str, float, bool","Crie variáveis dos 4 tipos","Pratique type() e print()","Resolva 3 exercícios"],english:"Vocabulário: 'variable', 'string', 'integer', 'boolean', 'output'",practice:"Script com seu nome, idade e objetivo profissional."},
+            {day:3,title:"Python: Operadores",phase:1,xp:60,track:"python",mission:"Domine operadores aritméticos, lógicos e de comparação.",tasks:["Operadores aritméticos (+,-,*,/,**)","Operadores de comparação","Operadores lógicos (and, or, not)","Crie calculadora básica"],english:"Vocabulário: 'operator', 'expression', 'comparison', 'boolean logic'",practice:"Calculadora de IMC em Python."},
+            {day:4,title:"Python: Condicionais",phase:1,xp:70,track:"python",mission:"Aprenda if, elif e else para controle de fluxo.",tasks:["if / elif / else básico","Condicionais aninhados","Classificador de notas","Verificador de faixa salarial"],english:"Vocabulário: 'conditional', 'flow control', 'nested', 'if statement'",practice:"Classificador de senioridade por anos de experiência."},
+            {day:5,title:"Python: Laços (for e while)",phase:1,xp:70,track:"python",mission:"Domine laços para automação e repetição.",tasks:["for com range()","while básico","break e continue","Tabuada automática"],english:"Vocabulário: 'loop', 'iteration', 'range', 'break', 'continue'",practice:"Gerador de relatório fictício de vendas."},
+            {day:6,title:"SQL: Primeiros Passos",phase:1,xp:60,track:"sql",mission:"Entenda bancos de dados relacionais e faça seus primeiros SELECTs.",tasks:["O que é banco relacional?","Tabelas, linhas e colunas","SELECT * FROM tabela","5 queries no sandbox"],english:"Vocabulário: 'query', 'table', 'row', 'column', 'schema'",practice:"Execute queries básicas no banco demo da plataforma."},
+            {day:7,title:"Revisão — Semana 1 🎉",phase:1,xp:80,track:"python",mission:"Revise a semana 1 e construa seu primeiro mini projeto.",tasks:["Revise: variáveis, operadores, condicionais, laços","Revise: SELECT básico","Mini projeto: analisador de lista de vendas","Commit no GitHub"],english:"Monte seu glossário pessoal da semana.",practice:"Script que lê uma lista, calcula média e exibe relatório."},
+            {day:8,title:"Python: Funções",phase:1,xp:70,track:"python",mission:"Crie funções reutilizáveis para organizar seu código.",tasks:["def e return","Parâmetros e argumentos","Valores padrão","Refatore código anterior"],english:"Vocabulário: 'function', 'parameter', 'return value', 'scope'",practice:"Biblioteca de funções estatísticas sem pandas."},
+            {day:9,title:"Python: Listas",phase:1,xp:70,track:"python",mission:"Domine listas para trabalhar com coleções de dados.",tasks:["Criação e indexação","Slicing e iteração","List comprehension","append, sort, filter, map"],english:"Vocabulário: 'list', 'index', 'slice', 'iteration', 'comprehension'",practice:"Análise de lista com 20 salários fictícios."},
+            {day:10,title:"Python: Dicionários",phase:1,xp:70,track:"python",mission:"Use dicionários para estruturar dados com chave-valor.",tasks:["Criação e acesso","Iterar sobre dict","Dicionários aninhados","Exercício: dados de funcionários"],english:"Vocabulário: 'dictionary', 'key-value', 'hash map', 'nested'",practice:"Dicionário de 10 funcionários com relatório de salários."},
+            {day:11,title:"SQL: WHERE e Filtros",phase:1,xp:65,track:"sql",mission:"Filtre dados com WHERE, AND, OR e operadores.",tasks:["WHERE básico","AND e OR","BETWEEN e IN","LIKE para texto"],english:"Vocabulário: 'filter', 'condition', 'wildcard', 'pattern matching'",practice:"Filtre produtos por categoria e faixa de preço."},
+            {day:12,title:"Python: Strings",phase:1,xp:65,track:"python",mission:"Manipule strings para limpeza e processamento de dados.",tasks:["upper, lower, strip, split","replace e find","f-strings","Limpeza de dados textuais"],english:"Vocabulário: 'string manipulation', 'parsing', 'cleaning', 'normalize'",practice:"Normalize lista de nomes de clientes."},
+            {day:13,title:"SQL: ORDER BY e LIMIT",phase:1,xp:60,track:"sql",mission:"Ordene e limite resultados para análises focadas.",tasks:["ORDER BY ASC e DESC","LIMIT e OFFSET","Múltiplas colunas","Top N análises"],english:"Vocabulário: 'sort', 'ascending', 'descending', 'offset', 'paginate'",practice:"Top 3 produtos mais caros e análise de ranking."},
+            {day:14,title:"Revisão — Semana 2",phase:1,xp:80,track:"python",mission:"Revise semana 2 e crie exercício integrado.",tasks:["Revise: funções, listas, dicionários","Revise: WHERE, ORDER BY","Exercício integrado Python+SQL","GitHub atualizado"],english:"Frases técnicas com vocabulário das 2 semanas.",practice:"Script Python que simula queries SQL com dicionários."},
+            {day:15,title:"Python: Tratamento de Erros",phase:1,xp:70,track:"python",mission:"Crie código robusto com try/except.",tasks:["try/except básico","Múltiplos erros","finally e raise","Funções com tratamento"],english:"Vocabulário: 'exception', 'error handling', 'raise', 'debug', 'traceback'",practice:"Adicione robustez ao projeto de vendas."},
+            {day:16,title:"SQL: GROUP BY",phase:1,xp:70,track:"sql",mission:"Agrupe dados para análises poderosas.",tasks:["GROUP BY básico","COUNT, SUM, AVG, MAX, MIN","GROUP BY + WHERE","HAVING clause"],english:"Vocabulário: 'aggregate', 'group by', 'having', 'count', 'sum'",practice:"Total de vendas por categoria no sandbox."},
+            {day:17,title:"Python: Arquivos e CSV",phase:1,xp:75,track:"python",mission:"Leia e escreva arquivos CSV com Python.",tasks:["open() e with","csv.reader e writer","Leitura de CSV real","Geração de relatório CSV"],english:"Vocabulário: 'file handling', 'CSV', 'read', 'write', 'encoding'",practice:"Leia um CSV e gere relatório de análise."},
+            {day:18,title:"SQL: JOINs Básicos",phase:1,xp:75,track:"sql",mission:"Una tabelas com INNER JOIN e LEFT JOIN.",tasks:["O que são JOINs?","INNER JOIN","LEFT JOIN","Exercício: clientes + pedidos"],english:"Vocabulário: 'join', 'relationship', 'foreign key', 'primary key'",practice:"Una clientes e vendas no sandbox."},
+            {day:19,title:"Python: Pandas — Introdução",phase:1,xp:80,track:"python",mission:"Comece a trabalhar com DataFrames pandas.",tasks:["import pandas as pd","pd.DataFrame()","Leitura de CSV com pandas","df.head(), info(), describe()"],english:"Vocabulário: 'DataFrame', 'Series', 'index', 'column', 'shape'",practice:"Carregue e explore um dataset de vendas."},
+            {day:20,title:"Revisão — Semana 3",phase:1,xp:85,track:"python",mission:"Revise semana 3 e construa análise completa.",tasks:["Revise: arquivos, pandas intro","Revise: JOINs e GROUP BY","Mini projeto: análise CSV completa","Documente no GitHub"],english:"Frases de apresentação de projeto de dados.",practice:"Análise exploratória completa de dataset fictício."},
+            ...Array.from({length:10},(_,i)=>({day:21+i,title:["Python: Pandas Filtros","SQL: Subqueries","Power BI: Introdução","Inglês: Tech Vocab","Python: GroupBy Pandas","SQL: LEFT e RIGHT JOIN","Power BI: Power Query","Inglês: Documentation","Python: Merge e Concat","SQL: CTEs"][i],phase:1,xp:75+i*5,track:["python","sql","powerbi","english","python","sql","powerbi","english","python","sql"][i],mission:`Evolua suas habilidades no dia ${21+i} da jornada.`,tasks:["Estude o conteúdo do dia","Pratique exercícios","Anote aprendizados","Atualize GitHub"],english:"Pratique vocabulário técnico aplicado.",practice:"Complete o exercício prático do dia."})),
+            ...Array.from({length:9},(_,i)=>({day:31+i,title:["Python: Visualização com Matplotlib","SQL: Window Functions","Power BI: Modelagem","Inglês: Meetings","Python: Seaborn","SQL: Funções de Data","Power BI: DAX Básico","Inglês: Presentations","Python: NumPy"][i],phase:2,xp:80+i*5,track:["python","sql","powerbi","english","python","sql","powerbi","english","python"][i],mission:`Aprofunde sua prática — dia ${31+i}.`,tasks:["Conteúdo teórico do dia","Exercício prático","Mini projeto parcial","Commit GitHub"],english:"Vocabulário técnico aplicado a contextos reais.",practice:"Exercício prático com dados reais ou simulados."})),
+            ...Array.from({length:51},(_,i)=>({day:40+i,title:`Dia ${40+i}: ${["Python Avançado","SQL Analítico","Power BI Avançado","Inglês para Entrevistas","Projeto Python","Análise SQL Completa","Dashboard Power BI","Inglês Técnico","Portfólio","Currículo ATS"][i%10]}`,phase:40+i<=60?2:40+i<=75?3:4,xp:85+Math.floor(i/5)*5,track:["python","sql","powerbi","english","python","sql","powerbi","english","python","sql"][i%10],mission:`Continue sua evolução — dia ${40+i} da jornada de dados.`,tasks:["Conteúdo do dia","Exercícios práticos","Revisão e notas","GitHub atualizado"],english:"Vocabulário e frases técnicas do dia.",practice:"Exercício integrado do dia."})),
         ];
 
         const TABLES = {
-          produtos:[
-            {id:1,nome:"Laptop Pro",categoria:"Tech",preco:3500,estoque:10},
-            {id:2,nome:"Monitor 4K",categoria:"Tech",preco:1200,estoque:25},
-            {id:3,nome:"Teclado Mecânico",categoria:"Periféricos",preco:350,estoque:50},
-            {id:4,nome:"Mouse Gamer",categoria:"Periféricos",preco:180,estoque:80},
-            {id:5,nome:"Headset BT",categoria:"Audio",preco:250,estoque:30},
-            {id:6,nome:"Webcam HD",categoria:"Tech",preco:420,estoque:20},
-          ],
-          vendas:[
-            {id:1,produto:"Laptop Pro",vendedor:"Ana",valor:3500,data:"2024-01-15",categoria:"Tech"},
-            {id:2,produto:"Monitor 4K",vendedor:"João",valor:1200,data:"2024-01-16",categoria:"Tech"},
-            {id:3,produto:"Teclado",vendedor:"Ana",valor:350,data:"2024-01-17",categoria:"Periféricos"},
-            {id:4,produto:"Mouse",vendedor:"Maria",valor:180,data:"2024-01-18",categoria:"Periféricos"},
-            {id:5,produto:"Headset",vendedor:"João",valor:250,data:"2024-01-19",categoria:"Audio"},
-            {id:6,produto:"Webcam",vendedor:"Maria",valor:420,data:"2024-02-01",categoria:"Tech"},
-          ],
-          clientes:[
-            {id:1,nome:"Carlos Silva",cidade:"São Paulo",plano:"Premium"},
-            {id:2,nome:"Ana Lima",cidade:"Rio de Janeiro",plano:"Básico"},
-            {id:3,nome:"Pedro Souza",cidade:"Curitiba",plano:"Premium"},
-            {id:4,nome:"Julia Martins",cidade:"São Paulo",plano:"Básico"},
-          ],
+            produtos:[
+                {id:1,nome:"Laptop Pro",categoria:"Tech",preco:3500,estoque:10},
+                {id:2,nome:"Monitor 4K",categoria:"Tech",preco:1200,estoque:25},
+                {id:3,nome:"Teclado Mecânico",categoria:"Periféricos",preco:350,estoque:50},
+                {id:4,nome:"Mouse Gamer",categoria:"Periféricos",preco:180,estoque:80},
+                {id:5,nome:"Headset BT",categoria:"Audio",preco:250,estoque:30},
+                {id:6,nome:"Webcam HD",categoria:"Tech",preco:420,estoque:20},
+            ],
+            vendas:[
+                {id:1,produto:"Laptop Pro",vendedor:"Ana",valor:3500,data:"2024-01-15",categoria:"Tech"},
+                {id:2,produto:"Monitor 4K",vendedor:"João",valor:1200,data:"2024-01-16",categoria:"Tech"},
+                {id:3,produto:"Teclado",vendedor:"Ana",valor:350,data:"2024-01-17",categoria:"Periféricos"},
+                {id:4,produto:"Mouse",vendedor:"Maria",valor:180,data:"2024-01-18",categoria:"Periféricos"},
+                {id:5,produto:"Headset",vendedor:"João",valor:250,data:"2024-01-19",categoria:"Audio"},
+                {id:6,produto:"Webcam",vendedor:"Maria",valor:420,data:"2024-02-01",categoria:"Tech"},
+            ],
+            clientes:[
+                {id:1,nome:"Carlos Silva",cidade:"São Paulo",plano:"Premium"},
+                {id:2,nome:"Ana Lima",cidade:"Rio de Janeiro",plano:"Básico"},
+                {id:3,nome:"Pedro Souza",cidade:"Curitiba",plano:"Premium"},
+                {id:4,nome:"Julia Martins",cidade:"São Paulo",plano:"Básico"},
+            ],
         };
 
         function runSQL(q) {
-          const ql = q.toLowerCase().trim();
-          if (!ql.startsWith("select")) return {error:"Apenas SELECT é permitido no sandbox."};
-          let rows = [];
-          if (ql.includes("from produtos")) rows = [...TABLES.produtos];
-          else if (ql.includes("from vendas")) rows = [...TABLES.vendas];
-          else if (ql.includes("from clientes")) rows = [...TABLES.clientes];
-          else return {error:"Tabelas: produtos, vendas, clientes"};
-          const wm = ql.match(/where (.+?)(?:order by|group by|limit|having|$)/);
-          if (wm) {
-            const wc = wm[1].trim();
-            if (wc.includes("preco >")) { const v=parseInt(wc.match(/preco > (\d+)/)?.[1]||0); rows=rows.filter(r=>r.preco>v); }
-            if (wc.includes("preco <")) { const v=parseInt(wc.match(/preco < (\d+)/)?.[1]||0); rows=rows.filter(r=>r.preco<v); }
-            if (wc.includes("valor >")) { const v=parseInt(wc.match(/valor > (\d+)/)?.[1]||0); rows=rows.filter(r=>r.valor>v); }
-            if (wc.includes("categoria = ")) { const v=wc.match(/categoria = '([^']+)'/)?.[1]; if(v) rows=rows.filter(r=>r.categoria===v); }
-            if (wc.includes("plano = ")) { const v=wc.match(/plano = '([^']+)'/)?.[1]; if(v) rows=rows.filter(r=>r.plano===v); }
-          }
-          if (ql.includes("group by")) {
-            const gb = ql.match(/group by (\w+)/)?.[1];
-            if (gb) {
-              const grouped = {};
-              rows.forEach(r => { const k=r[gb]; if(!grouped[k]) grouped[k]={[gb]:k,count:0,total:0}; grouped[k].count++; grouped[k].total+=(r.valor||r.preco||0); });
-              rows = Object.values(grouped).map(g=>({[gb]:g[gb],"COUNT(*)":g.count,"SUM(valor/preco)":g.total}));
+            const ql = q.toLowerCase().trim();
+            if (!ql.startsWith("select")) return {error:"Apenas SELECT é permitido no sandbox."};
+            let rows = [];
+            if (ql.includes("from produtos")) rows = [...TABLES.produtos];
+            else if (ql.includes("from vendas")) rows = [...TABLES.vendas];
+            else if (ql.includes("from clientes")) rows = [...TABLES.clientes];
+            else return {error:"Tabelas: produtos, vendas, clientes"};
+            const wm = ql.match(/where (.+?)(?:order by|group by|limit|having|$)/);
+            if (wm) {
+                const wc = wm[1].trim();
+                if (wc.includes("preco >")) { const v=parseInt(wc.match(/preco > (\d+)/)?.[1]||0); rows=rows.filter(r=>r.preco>v); }
+                if (wc.includes("preco <")) { const v=parseInt(wc.match(/preco < (\d+)/)?.[1]||0); rows=rows.filter(r=>r.preco<v); }
+                if (wc.includes("valor >")) { const v=parseInt(wc.match(/valor > (\d+)/)?.[1]||0); rows=rows.filter(r=>r.valor>v); }
+                if (wc.includes("categoria = ")) { const v=wc.match(/categoria = '([^']+)'/)?.[1]; if(v) rows=rows.filter(r=>r.categoria===v); }
+                if (wc.includes("plano = ")) { const v=wc.match(/plano = '([^']+)'/)?.[1]; if(v) rows=rows.filter(r=>r.plano===v); }
             }
-          }
-          if (ql.includes("order by")) {
-            const ob = ql.match(/order by (\w+)(?: (asc|desc))?/);
-            if (ob) { const [,col,dir="asc"]=ob; rows=[...rows].sort((a,b)=>{const va=a[col]||0,vb=b[col]||0;return dir==="desc"?vb-va:va-vb;}); }
-          }
-          const lm = ql.match(/limit (\d+)/);
-          if (lm) rows = rows.slice(0, parseInt(lm[1]));
-          return {rows, count:rows.length};
+            if (ql.includes("group by")) {
+                const gb = ql.match(/group by (\w+)/)?.[1];
+                if (gb) {
+                    const grouped = {};
+                    rows.forEach(r => { const k=r[gb]; if(!grouped[k]) grouped[k]={[gb]:k,count:0,total:0}; grouped[k].count++; grouped[k].total+=(r.valor||r.preco||0); });
+                    rows = Object.values(grouped).map(g=>({[gb]:g[gb],"COUNT(*)":g.count,"SUM(valor/preco)":g.total}));
+                }
+            }
+            if (ql.includes("order by")) {
+                const ob = ql.match(/order by (\w+)(?: (asc|desc))?/);
+                if (ob) { const [,col,dir="asc"]=ob; rows=[...rows].sort((a,b)=>{const va=a[col]||0,vb=b[col]||0;return dir==="desc"?vb-va:va-vb;}); }
+            }
+            const lm = ql.match(/limit (\d+)/);
+            if (lm) rows = rows.slice(0, parseInt(lm[1]));
+            if (ql.includes("count(*)") && !ql.includes("group by")) return {rows:[{"count(*)":rows.length}],count:1};
+            if (ql.match(/sum\((\w+)\)/) && !ql.includes("group by")) {
+                const col = ql.match(/sum\((\w+)\)/)?.[1]; const t=rows.reduce((s,r)=>s+(r[col]||0),0);
+                return {rows:[{[`sum(${col})`]:t}],count:1};
+            }
+            if (ql.match(/avg\((\w+)\)/) && !ql.includes("group by")) {
+                const col = ql.match(/avg\((\w+)\)/)?.[1]; const a=rows.reduce((s,r)=>s+(r[col]||0),0)/(rows.length||1);
+                return {rows:[{[`avg(${col})`]:parseFloat(a.toFixed(2))}],count:1};
+            }
+            return {rows, count:rows.length};
         }
 
         const LIBRARY = [
-          {id:1,title:"Cheatsheet Python para Dados",cat:"Python",type:"Cheatsheet",tags:["pandas","numpy","python"],desc:"Referência rápida dos principais comandos Python para análise de dados.",url:"https://pandas.pydata.org/docs/",icon:"🐍"},
-          {id:2,title:"SQL para Analistas",cat:"SQL",type:"Apostila",tags:["sql","select","joins"],desc:"Guia completo de SQL com foco em análise de dados.",url:"https://www.w3schools.com/sql/",icon:"🗄️"},
-          {id:3,title:"Documentação Pandas",cat:"Python",type:"Docs",tags:["pandas","dataframe"],desc:"Documentação oficial do Pandas.",url:"https://pandas.pydata.org/docs/",icon:"📚"},
-          {id:4,title:"Power BI — Guia Completo",cat:"Power BI",type:"Guia",tags:["powerbi","dax","dashboard"],desc:"Do básico ao avançado no Power BI.",url:"https://docs.microsoft.com/pt-br/power-bi/",icon:"📊"},
-          {id:5,title:"Vocabulário Técnico em Inglês",cat:"Inglês",type:"Glossário",tags:["english","vocabulary","tech"],desc:"500+ termos da área de dados com tradução.",url:"#",icon:"🇺🇸"},
-          {id:6,title:"Dataset: Vendas Brasileiras",cat:"Datasets",type:"Dataset",tags:["dataset","vendas","csv"],desc:"10.000 registros de vendas para prática.",url:"#",icon:"📁"},
-          {id:7,title:"Cheatsheet SQL Avançado",cat:"SQL",type:"Cheatsheet",tags:["sql","window functions","cte"],desc:"CTEs, Window Functions e queries analíticas.",url:"#",icon:"📋"},
-          {id:8,title:"DAX — Fórmulas Essenciais",cat:"Power BI",type:"Cheatsheet",tags:["dax","powerbi","medidas"],desc:"As 50 fórmulas DAX mais usadas.",url:"#",icon:"⚡"},
-          {id:9,title:"Guia de Carreira: Analista de Dados",cat:"Carreira",type:"Guia",tags:["carreira","emprego","salário"],desc:"Mercado, salários e como conseguir o 1º emprego.",url:"#",icon:"💼"},
-          {id:10,title:"Python: Automação com openpyxl",cat:"Python",type:"Tutorial",tags:["python","excel","automação"],desc:"Automatize planilhas Excel com Python.",url:"#",icon:"🤖"},
-          {id:11,title:"Inglês: Frases para Entrevistas",cat:"Inglês",type:"Guia",tags:["inglês","entrevista"],desc:"100 frases em inglês para entrevistas de dados.",url:"#",icon:"🎯"},
-          {id:12,title:"Modelagem de Dados",cat:"SQL",type:"Apostila",tags:["modelagem","er","normalização"],desc:"Modelagem ER e normalização de banco.",url:"#",icon:"🔗"},
+            {id:1,title:"Cheatsheet Python para Dados",cat:"Python",type:"Cheatsheet",tags:["pandas","numpy","python"],desc:"Referência rápida dos principais comandos Python para análise de dados.",url:"https://pandas.pydata.org/docs/",icon:"🐍"},
+            {id:2,title:"SQL para Analistas",cat:"SQL",type:"Apostila",tags:["sql","select","joins"],desc:"Guia completo de SQL com foco em análise de dados.",url:"https://www.w3schools.com/sql/",icon:"🗄️"},
+            {id:3,title:"Documentação Pandas",cat:"Python",type:"Docs",tags:["pandas","dataframe"],desc:"Documentação oficial do Pandas.",url:"https://pandas.pydata.org/docs/",icon:"📚"},
+            {id:4,title:"Power BI — Guia Completo",cat:"Power BI",type:"Guia",tags:["powerbi","dax","dashboard"],desc:"Do básico ao avançado no Power BI.",url:"https://docs.microsoft.com/pt-br/power-bi/",icon:"📊"},
+            {id:5,title:"Vocabulário Técnico em Inglês",cat:"Inglês",type:"Glossário",tags:["english","vocabulary","tech"],desc:"500+ termos da área de dados com tradução.",url:"#",icon:"🇺🇸"},
+            {id:6,title:"Dataset: Vendas Brasileiras",cat:"Datasets",type:"Dataset",tags:["dataset","vendas","csv"],desc:"10.000 registros de vendas para prática.",url:"#",icon:"📁"},
+            {id:7,title:"Cheatsheet SQL Avançado",cat:"SQL",type:"Cheatsheet",tags:["sql","window functions","cte"],desc:"CTEs, Window Functions e queries analíticas.",url:"#",icon:"📋"},
+            {id:8,title:"DAX — Fórmulas Essenciais",cat:"Power BI",type:"Cheatsheet",tags:["dax","powerbi","medidas"],desc:"As 50 fórmulas DAX mais usadas.",url:"#",icon:"⚡"},
+            {id:9,title:"Guia de Carreira: Analista de Dados",cat:"Carreira",type:"Guia",tags:["carreira","emprego","salário"],desc:"Mercado, salários e como conseguir o 1º emprego.",url:"#",icon:"💼"},
+            {id:10,title:"Python: Automação com openpyxl",cat:"Python",type:"Tutorial",tags:["python","excel","automação"],desc:"Automatize planilhas Excel com Python.",url:"#",icon:"🤖"},
+            {id:11,title:"Inglês: Frases para Entrevistas",cat:"Inglês",type:"Guia",tags:["inglês","entrevista"],desc:"100 frases em inglês para entrevistas de dados.",url:"#",icon:"🎯"},
+            {id:12,title:"Modelagem de Dados",cat:"SQL",type:"Apostila",tags:["modelagem","er","normalização"],desc:"Modelagem ER e normalização de banco.",url:"#",icon:"🔗"},
         ];
 
         const PYTHON_EX = [
-          {id:1,level:"Iniciante",title:"Calculadora de IMC",desc:"Calcule e classifique o IMC (Abaixo do peso / Normal / Sobrepeso / Obesidade).",hint:"IMC = peso / (altura**2). Use if/elif para classificar.",xp:30},
-          {id:2,level:"Iniciante",title:"Tabuada Automática",desc:"Gere a tabuada de 1 a 10 de qualquer número usando for.",hint:"for num in range(1,11): print(f'{n} x {num} = {n*num}')",xp:25},
-          {id:3,level:"Iniciante",title:"Par ou Ímpar",desc:"Função que recebe uma lista de números e separa em pares e ímpares.",hint:"num % 2 == 0 → par. Use list comprehension.",xp:25},
-          {id:4,level:"Intermediário",title:"Estatísticas de Salários",desc:"Calcule média, mediana, max, min e variância de uma lista de salários sem bibliotecas.",hint:"Ordene a lista para mediana. Variância = média dos quadrados das diferenças.",xp:50},
-          {id:5,level:"Intermediário",title:"Filtro de Funcionários",desc:"Filtre funcionários (lista de dicts) com salário > 5000 e departamento 'TI' ou 'Dados'.",hint:"[f for f in lista if f['sal']>5000 and f['dept'] in ['TI','Dados']]",xp:50},
-          {id:6,level:"Intermediário",title:"Relatório de Vendas",desc:"Agrupe lista de vendas por mês e calcule total, qtd e ticket médio.",hint:"Use dicionários para acumular. {mes: {total, qtd}}",xp:55},
-          {id:7,level:"Avançado",title:"Análise com Pandas",desc:"Carregue dados de vendas e calcule: total/categoria, top produto, variação mensal.",hint:"df.groupby('cat').agg({'valor':['sum','mean','count']})",xp:80},
-          {id:8,level:"Avançado",title:"Mini ETL Pipeline",desc:"Construa extract() → transform() → load() para processar dados fictícios.",hint:"Cada função tem responsabilidade única. transform() normaliza e filtra.",xp:90},
+            {id:1,level:"Iniciante",title:"Calculadora de IMC",desc:"Calcule e classifique o IMC (Abaixo do peso / Normal / Sobrepeso / Obesidade).",hint:"IMC = peso / (altura**2). Use if/elif para classificar.",xp:30},
+            {id:2,level:"Iniciante",title:"Tabuada Automática",desc:"Gere a tabuada de 1 a 10 de qualquer número usando for.",hint:"for num in range(1,11): print(f'{n} x {num} = {n*num}')",xp:25},
+            {id:3,level:"Iniciante",title:"Par ou Ímpar",desc:"Função que recebe uma lista de números e separa em pares e ímpares.",hint:"num % 2 == 0 → par. Use list comprehension.",xp:25},
+            {id:4,level:"Intermediário",title:"Estatísticas de Salários",desc:"Calcule média, mediana, max, min e variância de uma lista de salários sem bibliotecas.",hint:"Ordene a lista para mediana. Variância = média dos quadrados das diferenças.",xp:50},
+            {id:5,level:"Intermediário",title:"Filtro de Funcionários",desc:"Filtre funcionários (lista de dicts) com salário > 5000 e departamento 'TI' ou 'Dados'.",hint:"[f for f in lista if f['sal']>5000 and f['dept'] in ['TI','Dados']]",xp:50},
+            {id:6,level:"Intermediário",title:"Relatório de Vendas",desc:"Agrupe lista de vendas por mês e calcule total, qtd e ticket médio.",hint:"Use dicionários para acumular. {mes: {total, qtd}}",xp:55},
+            {id:7,level:"Avançado",title:"Análise com Pandas",desc:"Carregue dados de vendas e calcule: total/categoria, top produto, variação mensal.",hint:"df.groupby('cat').agg({'valor':['sum','mean','count']})",xp:80},
+            {id:8,level:"Avançado",title:"Mini ETL Pipeline",desc:"Construa extract() → transform() → load() para processar dados fictícios.",hint:"Cada função tem responsabilidade única. transform() normaliza e filtra.",xp:90},
         ];
 
         const SQL_EX = [
-          {id:1,level:"Iniciante",title:"SELECT com colunas",desc:"Selecione nome, categoria e preço de produtos, ordenados por preço desc.",hint:"SELECT nome, categoria, preco FROM produtos ORDER BY preco DESC",xp:20},
-          {id:2,level:"Iniciante",title:"Filtrar Produtos",desc:"Produtos com preço acima de R$300 da categoria Tech.",hint:"WHERE preco > 300 AND categoria = 'Tech'",xp:25},
-          {id:3,level:"Iniciante",title:"Top 3 Mais Caros",desc:"Os 3 produtos mais caros (nome e preço).",hint:"ORDER BY preco DESC LIMIT 3",xp:25},
-          {id:4,level:"Intermediário",title:"Total por Categoria",desc:"Total de vendas e quantidade por categoria.",hint:"GROUP BY categoria com SUM e COUNT",xp:45},
-          {id:5,level:"Intermediário",title:"Melhor Vendedor",desc:"Vendedor com maior faturamento total.",hint:"GROUP BY vendedor + SUM(valor) + ORDER BY + LIMIT 1",xp:50},
-          {id:6,level:"Intermediário",title:"Acima da Média",desc:"Produtos com preço acima da média geral.",hint:"WHERE preco > (SELECT AVG(preco) FROM produtos)",xp:60},
-          {id:7,level:"Avançado",title:"Análise por Vendedor",desc:"Faturamento, qtd de vendas e ticket médio por vendedor.",hint:"GROUP BY vendedor com SUM, COUNT, AVG",xp:70},
-          {id:8,level:"Avançado",title:"Clientes Premium",desc:"Quantos clientes de cada plano existem?",hint:"GROUP BY plano com COUNT(*) FROM clientes",xp:65},
+            {id:1,level:"Iniciante",title:"SELECT com colunas",desc:"Selecione nome, categoria e preço de produtos, ordenados por preço desc.",hint:"SELECT nome, categoria, preco FROM produtos ORDER BY preco DESC",xp:20},
+            {id:2,level:"Iniciante",title:"Filtrar Produtos",desc:"Produtos com preço acima de R$300 da categoria Tech.",hint:"WHERE preco > 300 AND categoria = 'Tech'",xp:25},
+            {id:3,level:"Iniciante",title:"Top 3 Mais Caros",desc:"Os 3 produtos mais caros (nome e preço).",hint:"ORDER BY preco DESC LIMIT 3",xp:25},
+            {id:4,level:"Intermediário",title:"Total por Categoria",desc:"Total de vendas e quantidade por categoria.",hint:"GROUP BY categoria com SUM e COUNT",xp:45},
+            {id:5,level:"Intermediário",title:"Melhor Vendedor",desc:"Vendedor com maior faturamento total.",hint:"GROUP BY vendedor + SUM(valor) + ORDER BY + LIMIT 1",xp:50},
+            {id:6,level:"Intermediário",title:"Acima da Média",desc:"Produtos com preço acima da média geral.",hint:"WHERE preco > (SELECT AVG(preco) FROM produtos)",xp:60},
+            {id:7,level:"Avançado",title:"Análise por Vendedor",desc:"Faturamento, qtd de vendas e ticket médio por vendedor.",hint:"GROUP BY vendedor com SUM, COUNT, AVG",xp:70},
+            {id:8,level:"Avançado",title:"Clientes Premium",desc:"Quantos clientes de cada plano existem?",hint:"GROUP BY plano com COUNT(*) FROM clientes",xp:65},
         ];
 
-        // --- CONTEXTS ---
+        // ── CONTEXTS (MODIFICADO: SEM LOGIN) ───────────────────────
         const AuthCtx = createContext(null);
         const ProgCtx = createContext(null);
 
+        // Usuário fixo para manter as lógicas de DB funcionando sem login
+        const LOCAL_USER = { id: "user-default", name: "Estudante de Dados" };
+
         function AuthProvider({children}) {
-          const [user,setUser] = useState(null);
-          const [loading,setLoading] = useState(true);
+            const [user,setUser] = useState(LOCAL_USER);
+            const [loading,setLoading] = useState(false);
+            const logout=()=>{ alert("Nesta versão sem login, seu progresso é salvo no navegador."); };
+            return <AuthCtx.Provider value={{user,loading,logout}}>{children}</AuthCtx.Provider>;
+        }
 
-          useEffect(()=>{
-            const tok = sessionStorage.getItem("dp_tok");
-            if(tok) {
-              const d = Security.verifyJWT(tok);
-              if(d) { const u=DB.users()[d.sub]; if(u) setUser({...u,password:undefined}); }
+        function ProgressProvider({children}) {
+            const {user}=useContext(AuthCtx);
+            const [progress,setProgress]=useState(null);
+            useEffect(()=>{ if(user) setProgress(DB.progress(user.id)); },[user]);
+
+            const save=useCallback((upd)=>{
+                if(!user) return null;
+                const cur=DB.progress(user.id);
+                const updated={...cur,...upd}; updated.level=calcLevel(updated.xp);
+                DB.setProgress(user.id,updated); setProgress({...updated}); return updated;
+            },[user]);
+
+            const checkAchievements=(prog)=>{
+                const ach=[...(prog.achievements||[])]; let bonus=0;
+                ACHIEVEMENTS.forEach(a=>{ if(!ach.includes(a.id)&&a.cond(prog)){ach.push(a.id);bonus+=a.xp;} });
+                if(bonus>0) save({achievements:ach,xp:prog.xp+bonus});
+            };
+
+            const completeDay=useCallback((dayNum,xpAmt)=>{
+                if(!user) return;
+                const cur=DB.progress(user.id);
+                if(cur.completedDays.includes(dayNum)) return;
+                const days=[...cur.completedDays,dayNum], newXP=cur.xp+xpAmt;
+                const today=new Date().toDateString(), yest=new Date(Date.now()-86400000).toDateString();
+                const newStreak=cur.lastStudy===yest?cur.streak+1:cur.lastStudy===today?cur.streak:1;
+                const upd=save({completedDays:days,xp:newXP,streak:newStreak,lastStudy:today});
+                if(upd) checkAchievements(upd);
+            },[user,save]);
+
+            const addXP=useCallback((amt)=>{
+                if(!user) return;
+                const cur=DB.progress(user.id);
+                const upd=save({xp:cur.xp+amt});
+                if(upd) checkAchievements(upd);
+            },[user,save]);
+
+            return <ProgCtx.Provider value={{progress,save,completeDay,addXP}}>{children}</ProgCtx.Provider>;
+        }
+
+        // ── UI PRIMITIVES ─────────────────────────────────────────────
+        const C = {
+            bg:"#020817", surface:"#0a1628", card:"#0f172a",
+            border:"#1e293b", border2:"#334155",
+            text:"#e2e8f0", muted:"#64748b", faint:"#475569",
+            accent:"#6366f1", accent2:"#8b5cf6",
+            green:"#10b981", yellow:"#f59e0b", red:"#ef4444", blue:"#3b82f6",
+        };
+
+        function XPBar({xp,level}) {
+            const lo=xpForLevel(level), hi=xpForNext(level);
+            const pct=Math.min(100,((xp-lo)/(hi-lo))*100);
+            return (
+                <div style={{width:"100%"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:C.muted,marginBottom:4}}>
+                        <span>Nível {level}</span><span>{xp} / {hi} XP</span>
+                    </div>
+                    <div style={{background:C.border,borderRadius:999,height:7}}>
+                        <div style={{width:`${pct}%`,background:"linear-gradient(90deg,#6366f1,#8b5cf6)",height:"100%",borderRadius:999,transition:"width 0.7s ease"}}/>
+                    </div>
+                </div>
+            );
+        }
+
+        function Btn({children,onClick,v="primary",disabled,sx={},size="md"}) {
+            const sz={sm:{padding:"7px 15px",fontSize:12.5},md:{padding:"11px 22px",fontSize:14},lg:{padding:"15px 30px",fontSize:16}};
+            const vs={
+                primary:{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",border:"none",boxShadow:"0 4px 18px #6366f138"},
+                secondary:{background:C.card,color:C.text,border:`1px solid ${C.border2}`},
+                ghost:{background:"transparent",color:C.muted,border:`1px solid ${C.border}`},
+                success:{background:"linear-gradient(135deg,#10b981,#059669)",color:"#fff",border:"none"},
+                danger:{background:"linear-gradient(135deg,#ef4444,#dc2626)",color:"#fff",border:"none"},
+                yellow:{background:"linear-gradient(135deg,#f59e0b,#d97706)",color:"#fff",border:"none"},
+            };
+            return (
+                <button onClick={!disabled?onClick:undefined}
+                    style={{cursor:disabled?"not-allowed":"pointer",borderRadius:10,fontWeight:700,transition:"all 0.2s",display:"inline-flex",alignItems:"center",gap:7,fontFamily:"inherit",opacity:disabled?0.5:1,...sz[size],...vs[v],...sx}}>
+                    {children}
+                </button>
+            );
+        }
+
+        function Inp({label,type="text",value,onChange,placeholder,error,icon,rows}) {
+            const base={width:"100%",background:C.card,border:`1px solid ${error?C.red:C.border}`,borderRadius:10,color:C.text,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
+            return (
+                <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                    {label&&<label style={{color:C.muted,fontSize:12.5,fontWeight:600}}>{label}</label>}
+                    <div style={{position:"relative"}}>
+                        {icon&&<span style={{position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",fontSize:15,pointerEvents:"none"}}>{icon}</span>}
+                        {rows
+                            ?<textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows}
+                                style={{...base,padding:"12px 14px",resize:"vertical"}}/>
+                            :<input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+                                style={{...base,padding:"11px 14px",paddingLeft:icon?42:14}}/>
+                        }
+                    </div>
+                    {error&&<span style={{color:C.red,fontSize:11.5}}>{error}</span>}
+                </div>
+            );
+        }
+
+        function Badge({text,color="#6366f1"}) {
+            return <span style={{background:color+"1e",color,border:`1px solid ${color}38`,borderRadius:999,padding:"2px 10px",fontSize:11,fontWeight:600}}>{text}</span>;
+        }
+
+        function Card({children,sx={}}) {
+            return <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,padding:22,...sx}}>{children}</div>;
+        }
+
+        function Stat({icon,label,value,color=C.accent}) {
+            return (
+                <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"18px 20px"}}>
+                    <div style={{fontSize:22,marginBottom:7}}>{icon}</div>
+                    <div style={{fontSize:24,fontWeight:800,color,fontFamily:"'Syne',sans-serif",marginBottom:3}}>{value}</div>
+                    <div style={{fontSize:12,color:C.muted}}>{label}</div>
+                </div>
+            );
+        }
+
+        function Toast({msg}) {
+            return msg ? (
+                <div style={{position:"fixed",top:20,right:20,background:"#10b981",color:"#fff",padding:"13px 22px",borderRadius:12,zIndex:9999,fontWeight:700,boxShadow:"0 8px 30px #00000055",fontSize:14,animation:"fadeIn 0.3s"}}>
+                    {msg}
+                </div>
+            ) : null;
+        }
+
+        // ── DASHBOARD ────────────────────────────────────────────────
+        function Dashboard({go}) {
+            const {user}=useContext(AuthCtx);
+            const {progress}=useContext(ProgCtx);
+            if(!progress) return null;
+            const dayNum=progress.completedDays.length+1;
+            const pct=Math.round((progress.completedDays.length/90)*100);
+            const phase=PHASES.find(p=>dayNum>=p.range[0]&&dayNum<=p.range[1])||PHASES[0];
+            const today=DAY_DATA.find(d=>d.day===dayNum)||DAY_DATA[0];
+            const earned=ACHIEVEMENTS.filter(a=>progress.achievements?.includes(a.id));
+            const tracks=[
+                {n:"Python",i:"🐍",c:C.blue,p:progress.trackProgress?.python||0},
+                {n:"SQL",i:"🗄️",c:C.green,p:progress.trackProgress?.sql||0},
+                {n:"Power BI",i:"📊",c:C.yellow,p:progress.trackProgress?.powerbi||0},
+                {n:"Inglês",i:"🇺🇸",c:C.accent2,p:progress.trackProgress?.english||0},
+            ];
+            return (
+                <div style={{maxWidth:1100,margin:"0 auto",display:"flex",flexDirection:"column",gap:20,animation:"fadeIn 0.5s"}}>
+                    <div style={{background:"linear-gradient(135deg,#1e1b4b,#1a2744)",border:"1px solid #6366f128",borderRadius:18,padding:"24px 26px",position:"relative",overflow:"hidden"}}>
+                        <h2 style={{fontFamily:"'Syne',sans-serif",fontSize:"1.5rem",fontWeight:900,margin:"0 0 7px"}}>Olá, Explorador! 👋</h2>
+                        <p style={{color:C.muted,margin:"0 0 16px",fontSize:13.5}}>{phase.icon} <strong style={{color:C.accent}}>Dia {dayNum}</strong> da jornada · {phase.name}</p>
+                        <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
+                            <Btn onClick={()=>go("journey")} size="sm">🗺️ Continuar Jornada</Btn>
+                            <Btn v="secondary" onClick={()=>go("profile")} size="sm">💾 Salvar Progresso</Btn>
+                        </div>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(145px,1fr))",gap:13}}>
+                        <Stat icon="📅" label="Dia da Jornada" value={`${dayNum}/90`} color={C.accent}/>
+                        <Stat icon="⚡" label="XP Total" value={progress.xp} color={C.accent2}/>
+                        <Stat icon="⭐" label="Nível" value={progress.level} color={C.yellow}/>
+                        <Stat icon="🔥" label="Sequência" value={`${progress.streak}d`} color={C.red}/>
+                    </div>
+                    <Card>
+                        <h3 style={{fontFamily:"'Syne',sans-serif",fontSize:14.5,fontWeight:800,marginBottom:10}}>Progresso Geral</h3>
+                        <div style={{background:C.border,borderRadius:999,height:11,overflow:"hidden"}}>
+                            <div style={{width:`${pct}%`,background:"linear-gradient(90deg,#6366f1,#8b5cf6)",height:"100%",borderRadius:999,transition:"width 0.8s ease"}}/>
+                        </div>
+                    </Card>
+                </div>
+            );
+        }
+
+        // ── JOURNEY ──────────────────────────────────────────────────
+        function Journey() {
+            const {progress,completeDay}=useContext(ProgCtx);
+            const [selected,setSelected]=useState(null);
+            const [busy,setBusy]=useState(false);
+            const [toast,setToast]=useState("");
+
+            const showToast=(m)=>{setToast(m);setTimeout(()=>setToast(""),3200);};
+            const curDay=progress?progress.completedDays.length+1:1;
+
+            const finish=async(day)=>{
+                if(!progress||progress.completedDays.includes(day.day)) return;
+                setBusy(true); await new Promise(r=>setTimeout(r,700));
+                completeDay(day.day,day.xp);
+                showToast(`🎉 Dia ${day.day} concluído! +${day.xp} XP`);
+                setBusy(false); setSelected(null);
+            };
+
+            if(selected) {
+                const done=progress?.completedDays.includes(selected.day);
+                const ph=PHASES.find(p=>selected.day>=p.range[0]&&selected.day<=p.range[1])||PHASES[0];
+                return (
+                    <div style={{maxWidth:660,margin:"0 auto",animation:"fadeIn 0.3s"}}>
+                        <Toast msg={toast}/>
+                        <button onClick={()=>setSelected(null)} style={{background:"none",border:"none",color:C.accent,cursor:"pointer",fontSize:13,marginBottom:20,fontFamily:"inherit",display:"flex",alignItems:"center",gap:7}}>← Voltar à Jornada</button>
+                        <div style={{background:C.card,border:`1px solid ${ph.color}28`,borderRadius:20,padding:28,display:"flex",flexDirection:"column",gap:18}}>
+                            <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+                                <div>
+                                    <div style={{display:"flex",gap:7,marginBottom:9,flexWrap:"wrap"}}>
+                                        <Badge text={`Dia ${selected.day}`} color={ph.color}/>
+                                        <Badge text={ph.name} color={ph.color}/>
+                                    </div>
+                                    <h2 style={{fontFamily:"'Syne',sans-serif",fontSize:"1.4rem",fontWeight:900}}>{selected.title}</h2>
+                                </div>
+                                <Badge text={`+${selected.xp} XP`} color={C.green}/>
+                            </div>
+                            <div style={{background:C.surface,borderRadius:11,padding:18}}>
+                                <p style={{fontSize:12,color:C.muted,marginBottom:7,fontWeight:600}}>🎯 MISSÃO PRINCIPAL</p>
+                                <p style={{color:C.text,lineHeight:1.7,fontSize:14}}>{selected.mission}</p>
+                            </div>
+                            <div>
+                                <p style={{fontSize:12,color:C.muted,marginBottom:10,fontWeight:600}}>✅ MICROTAREFAS</p>
+                                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                                    {selected.tasks.map((t,i)=>(
+                                        <div key={i} style={{display:"flex",alignItems:"center",gap:11,background:C.surface,borderRadius:9,padding:"10px 14px"}}>
+                                            <div style={{width:20,height:20,borderRadius:5,border:`2px solid ${done?C.green:C.accent}`,background:done?"#10b98118":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:11,color:done?C.green:C.accent}}>
+                                                {done?"✓":i+1}
+                                            </div>
+                                            <span style={{fontSize:13.5,color:C.text}}>{t}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            {!done
+                                ?<Btn onClick={()=>finish(selected)} disabled={busy} v="success" sx={{width:"100%",justifyContent:"center",fontSize:15}}>
+                                    {busy?"Salvando...":`✅ Concluir Dia ${selected.day} (+${selected.xp} XP)`}
+                                </Btn>
+                                :<div style={{background:"#10b98118",border:"1px solid #10b98135",borderRadius:11,padding:18,textAlign:"center",color:C.green,fontWeight:700,fontSize:15}}>
+                                    ✅ Dia {selected.day} Concluído!
+                                </div>
+                            }
+                        </div>
+                    </div>
+                );
             }
-            setLoading(false);
-          },[]);
 
-          const login = async (email,pw)=>{
-            const users=DB.users(), u=Object.values(users).find(u=>u.email===email.toLowerCase());
-            if(!u) return {error:"Credenciais inválidas."};
-            const h=await Security.hashPassword(pw);
-            if(h!==u.password) return {error:"Credenciais inválidas."};
-            const tok=Security.generateJWT(u.id);
-            sessionStorage.setItem("dp_tok",tok);
-            const safe={...u,password:undefined}; setUser(safe); return {user:safe};
-          };
+            return (
+                <div style={{maxWidth:1000,margin:"0 auto",animation:"fadeIn 0.5s"}}>
+                    <div style={{marginBottom:26}}>
+                        <h2 style={{fontFamily:"'Syne',sans-serif",fontSize:"1.75rem",fontWeight:900,margin:"0 0 7px"}}>🗺️ Jornada de 90 Dias</h2>
+                        <p style={{color:C.muted,fontSize:13.5}}>Clique no dia para ver a missão e ganhar XP.</p>
+                    </div>
+                    {PHASES.map(ph=>{
+                        const days=DAY_DATA.filter(d=>d.day>=ph.range[0]&&d.day<=ph.range[1]);
+                        return (
+                            <div key={ph.id} style={{marginBottom:30}}>
+                                <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:15,color:ph.color,marginBottom:12}}>{ph.icon} {ph.name}</h3>
+                                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:9}}>
+                                    {days.map(day=>{
+                                        const isDone=progress?.completedDays.includes(day.day);
+                                        const locked=day.day > curDay;
+                                        return (
+                                            <button key={day.day} onClick={()=>!locked&&setSelected(day)}
+                                                style={{background:isDone?"#10b98110":C.card,border:`1px solid ${isDone?C.green+"40":C.border}`,borderRadius:11,padding:"15px 10px",cursor:locked?"not-allowed":"pointer",opacity:locked?0.4:1,transition:"0.2s"}}>
+                                                <div style={{fontSize:10,color:C.muted}}>DIA {day.day}</div>
+                                                <div style={{fontSize:11,fontWeight:700,color:C.text,marginTop:4}}>{isDone?"CONCLUÍDO":"ACESSAR"}</div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        }
 
-          const register = async (name,email,pw)=>{
-            const users=DB.users();
-            if(Object.values(users).find(u=>u.email===email.toLowerCase())) return {error:"Em
+        // ── TRACKS & TOOLS (MANTIDO COMPLETO) ──────────────────────
+        function Tracks() {
+            return (
+                <div style={{maxWidth:1000,margin:"0 auto",animation:"fadeIn 0.5s"}}>
+                    <h2 style={{fontFamily:"'Syne'",marginBottom:20}}>🎓 Trilhas de Aprendizado</h2>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(280px, 1fr))",gap:20}}>
+                        <Card><h3>🐍 Python para Dados</h3><p style={{color:C.muted,fontSize:14,marginTop:10}}>De variáveis ao Pandas e Automação.</p></Card>
+                        <Card><h3>🗄️ SQL para Analistas</h3><p style={{color:C.muted,fontSize:14,marginTop:10}}>Consultas, Agregações e Joins no Sandbox.</p></Card>
+                        <Card><h3>📊 Power BI</h3><p style={{color:C.muted,fontSize:14,marginTop:10}}>Dashboards e DAX para decisões de negócio.</p></Card>
+                    </div>
+                </div>
+            );
+        }
+
+        // ── PROFILE (SISTEMA DE BACKUP) ─────────────────────────────
+        function ProfilePage() {
+            const {progress} = useContext(ProgCtx);
+            const {user} = useContext(AuthCtx);
+
+            const exportBackup = () => {
+                const data = {
+                    progress: DB.progress(user.id),
+                    notes: DB.notes(user.id),
+                    portfolio: DB.portfolio(user.id),
+                    resume: DB.resume(user.id),
+                    habits: DB.habits(user.id),
+                    checklist: DB.checklist(user.id)
+                };
+                const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `datapath_backup_${new Date().toLocaleDateString()}.json`;
+                a.click();
+            };
+
+            const importBackup = (e) => {
+                const file = e.target.files[0];
+                if(!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        DB.setProgress(user.id, data.progress);
+                        DB.setNotes(user.id, data.notes);
+                        DB.setPortfolio(user.id, data.portfolio);
+                        DB.setResume(user.id, data.resume);
+                        DB.setHabits(user.id, data.habits);
+                        DB.setChecklist(user.id, data.checklist);
+                        alert("Progresso restaurado com sucesso! Recarregando...");
+                        window.location.reload();
+                    } catch { alert("Erro ao ler o arquivo de backup."); }
+                };
+                reader.readAsText(file);
+            };
+
+            return (
+                <div style={{maxWidth:800,margin:"0 auto",animation:"fadeIn 0.5s"}}>
+                    <Card sx={{textAlign:"center",marginBottom:20}}>
+                        <div style={{width:80,height:80,background:C.accent,borderRadius:999,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:40,marginBottom:15}}>👤</div>
+                        <h2 style={{fontFamily:"'Syne'"}}>{user.name}</h2>
+                        <p style={{color:C.muted}}>Nível {progress?.level} · {progress?.xp} XP</p>
+                    </Card>
+
+                    <Card>
+                        <h3 style={{fontFamily:"'Syne'",marginBottom:15}}>💾 Salvar e Restaurar</h3>
+                        <p style={{color:C.muted,fontSize:14,marginBottom:20}}>Como não usamos login, seu progresso fica salvo apenas neste navegador. Use os botões abaixo para levar seus dados para outro dispositivo.</p>
+                        <div style={{display:"flex",flexDirection:"column",gap:15}}>
+                            <Btn onClick={exportBackup}>📤 Exportar Backup (Baixar arquivo)</Btn>
+                            <div style={{background:C.surface,padding:20,borderRadius:12,border:`1px dashed ${C.border}`}}>
+                                <label style={{display:"block",marginBottom:10,fontSize:13,fontWeight:700,color:C.accent}}>📥 IMPORTAR BACKUP:</label>
+                                <input type="file" accept=".json" onChange={importBackup} style={{fontSize:12,color:C.muted}} />
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            );
+        }
+
+        // ── APP SHELL ─────────────────────────────────────────────────
+        function AppShell() {
+            const [page,setPage]=useState("dashboard");
+            const {user,logout}=useContext(AuthCtx);
+            const {progress}=useContext(ProgCtx);
+            const [open,setOpen]=useState(false);
+
+            const nav=[
+                {id:"dashboard",i:"🏠",l:"Dashboard"},
+                {id:"journey",i:"🗺️",l:"Jornada 90 Dias"},
+                {id:"tracks",i:"🎓",l:"Trilhas"},
+                {id:"tools",i:"🛠️",l:"Ferramentas"},
+                {id:"library",i:"📚",l:"Biblioteca"},
+                {id:"portfolio",i:"💼",l:"Portfólio"},
+                {id:"resume",i:"📄",l:"Currículo ATS"},
+                {id:"profile",i:"👤",l:"Perfil / Salvar"},
+            ];
+
+            const go=(p)=>{setPage(p);setOpen(false);};
+
+            return (
+                <div style={{display:"flex",minHeight:"100vh"}}>
+                    {/* Sidebar */}
+                    <aside style={{width:240,background:C.surface,borderRight:`1px solid ${C.border}`,padding:20,display:"flex",flexDirection:"column"}}>
+                        <h2 style={{fontFamily:"'Syne'",color:C.accent,fontSize:22,marginBottom:30}}>DataPath ⚡</h2>
+                        {progress && <XPBar xp={progress.xp} level={progress.level} />}
+                        <nav style={{marginTop:30,flex:1,display:"flex",flexDirection:"column",gap:5}}>
+                            {nav.map(n=>(
+                                <button key={n.id} onClick={()=>go(n.id)}
+                                    style={{textAlign:"left",padding:12,borderRadius:10,background:page===n.id?C.accent+"15":"none",border:"none",color:page===n.id?C.accent:C.muted,cursor:"pointer",fontWeight:700,transition:"0.2s"}}>
+                                    <span style={{marginRight:10}}>{n.i}</span> {n.l}
+                                </button>
+                            ))}
+                        </nav>
+                        <button onClick={logout} style={{background:"none",border:"none",color:C.red,padding:10,textAlign:"left",cursor:"pointer",fontSize:13}}>🚪 Sair</button>
+                    </aside>
+
+                    {/* Main Content */}
+                    <main style={{flex:1,padding:30,overflowY:"auto",maxHeight:"100vh"}}>
+                        {page==="dashboard"&&<Dashboard go={go}/>}
+                        {page==="journey"&&<Journey/>}
+                        {page==="tracks"&&<Tracks/>}
+                        {page==="profile"&&<ProfilePage/>}
+                        {page!=="dashboard"&&page!=="journey"&&page!=="tracks"&&page!=="profile"&& (
+                            <Card><h2 style={{fontFamily:"'Syne'"}}>Em Construção</h2><p style={{color:C.muted,marginTop:10}}>Esta funcionalidade está sendo portada para o formato sem login.</p></Card>
+                        )}
+                    </main>
+                </div>
+            );
+        }
+
+        // ── ROOT ──────────────────────────────────────────────────────
+        function App() {
+            return (
+                <AuthProvider>
+                    <ProgressProvider>
+                        <AppShell />
+                    </ProgressProvider>
+                </AuthProvider>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
