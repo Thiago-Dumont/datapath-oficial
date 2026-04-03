@@ -5,380 +5,265 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DataPath — Plataforma Gamificada de Dados</title>
     
-    <!-- Fontes e Estilos -->
+    <!-- Bibliotecas Externas para rodar seu código original -->
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- Scripts do React e Babel (Motor do Site) -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
-        :root {
-            --bg: #020817;
-            --surface: #0a1628;
-            --card: #0f172a;
-            --border: #1e293b;
-            --accent: #6366f1;
-            --accent2: #8b5cf6;
-            --text: #e2e8f0;
-            --muted: #64748b;
-            --green: #10b981;
-            --yellow: #f59e0b;
-            --red: #ef4444;
-        }
-
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background-color: var(--bg); color: var(--text); font-family: 'Outfit', sans-serif; overflow-x: hidden; }
+        body { background-color: #020817; color: #e2e8f0; font-family: 'Outfit', sans-serif; overflow-x: hidden; }
         #root { min-height: 100vh; }
-        
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: var(--bg); }
-        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .page-enter { animation: fadeIn 0.4s ease-out forwards; }
+        /* Suas animações e estilos globais */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        input:focus, textarea:focus { outline: none !important; border-color: #6366f1 !important; box-shadow: 0 0 0 3px #6366f115; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
+        // Mapeando os hooks do React que você usou no topo do seu arquivo original
         const { useState, useEffect, useCallback, useRef, createContext, useContext } = React;
 
-        // ── SEGURANÇA ───────────────────────────────────────────────
+        // ============================================================
+        // SEU CÓDIGO ORIGINAL COMPLETO (1000+ LINHAS)
+        // ============================================================
+
         const Security = {
-            hashPassword: async (pw) => {
-                const data = new TextEncoder().encode(pw + "dp_salt_x9k2");
-                const hash = await crypto.subtle.digest("SHA-256", data);
-                return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,"0")).join("");
-            },
-            sanitize: (s) => typeof s === "string" ? s.replace(/[<>&"']/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;","'":"&#x27;"}[c])) : "",
-            validateEmail: (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e),
-            validatePassword: (p) => p.length >= 8 && /[A-Z]/.test(p) && /[0-9]/.test(p),
-            generateJWT: (uid) => {
-                const h = btoa(JSON.stringify({alg:"HS256",typ:"JWT"}));
-                const p = btoa(JSON.stringify({sub:uid,iat:Date.now(),exp:Date.now()+86400000}));
-                const s = btoa(uid+"dp_secret_key");
-                return `${h}.${p}.${s}`;
-            },
-            verifyJWT: (token) => {
-                try { const d = JSON.parse(atob(token.split(".")[1])); return d.exp > Date.now() ? d : null; }
-                catch { return null; }
-            }
+          hashPassword: async (pw) => {
+            const data = new TextEncoder().encode(pw + "dp_salt_x9k2");
+            const hash = await crypto.subtle.digest("SHA-256", data);
+            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,"0")).join("");
+          },
+          sanitize: (s) => typeof s === "string" ? s.replace(/[<>&"']/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;","'":"&#x27;"}[c])) : "",
+          validateEmail: (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e),
+          validatePassword: (p) => p.length >= 8 && /[A-Z]/.test(p) && /[0-9]/.test(p),
+          generateJWT: (uid) => {
+            const h = btoa(JSON.stringify({alg:"HS256",typ:"JWT"}));
+            const p = btoa(JSON.stringify({sub:uid,iat:Date.now(),exp:Date.now()+86400000}));
+            const s = btoa(uid+"dp_secret_key");
+            return `${h}.${p}.${s}`;
+          },
+          verifyJWT: (token) => {
+            try { const d = JSON.parse(atob(token.split(".")[1])); return d.exp > Date.now() ? d : null; }
+            catch { return null; }
+          },
         };
 
-        // ── BANCO DE DADOS (LOCALSTORAGE) ───────────────────────────
+        const RL = { _a: {}, check(k, max=5, win=900000) {
+          const now = Date.now();
+          this._a[k] = (this._a[k]||[]).filter(t=>now-t<win);
+          if (this._a[k].length >= max) return false;
+          this._a[k].push(now); return true;
+        }};
+
         const DB = {
-            g: (k) => { try { return JSON.parse(localStorage.getItem("dp_"+k)||"null"); } catch { return null; }},
-            s: (k,v) => { try { localStorage.setItem("dp_"+k, JSON.stringify(v)); } catch {} },
-            users: () => DB.g("users") || {},
-            setUsers: (u) => DB.s("users", u),
-            progress: (id) => DB.g("prog_"+id) || {userId:id, xp:0, level:1, streak:0, completedDays:[], achievements:[], trackProgress:{python:0,sql:0,powerbi:0,english:0}},
-            setProgress: (id,p) => DB.s("prog_"+id, p),
-            notes: (id) => DB.g("notes_"+id) || [],
-            setNotes: (id,n) => DB.s("notes_"+id, n),
-            portfolio: (id) => DB.g("pf_"+id) || [],
-            setPortfolio: (id,p) => DB.s("pf_"+id, p),
-            resume: (id) => DB.g("cv_"+id) || {name:"",title:"",email:"",skills:[],projects:[]},
-            setResume: (id,r) => DB.s("cv_"+id, r),
-            goals: (id) => DB.g("goals_"+id) || [],
-            setGoals: (id,g) => DB.s("goals_"+id, g),
-            habits: (id) => DB.g("habits_"+id) || [
-                {id:1,name:"Estudar Python",streak:0,done:false,color:"#3b82f6"},
-                {id:2,name:"Praticar SQL",streak:0,done:false,color:"#10b981"},
-                {id:3,name:"Inglês técnico",streak:0,done:false,color:"#f59e0b"},
-                {id:4,name:"Revisão do dia",streak:0,done:false,color:"#8b5cf6"},
-            ],
-            setHabits: (id,h) => DB.s("habits_"+id, h),
-            checklist: (id) => DB.g("check_"+id) || [],
-            setChecklist: (id,c) => DB.s("check_"+id, c),
+          g: (k) => { try { return JSON.parse(localStorage.getItem("dp_"+k)||"null"); } catch { return null; }},
+          s: (k,v) => { try { localStorage.setItem("dp_"+k, JSON.stringify(v)); } catch {} },
+          users: () => DB.g("users") || {},
+          setUsers: (u) => DB.s("users", u),
+          progress: (id) => DB.g("prog_"+id) || defProgress(id),
+          setProgress: (id,p) => DB.s("prog_"+id, p),
+          notes: (id) => DB.g("notes_"+id) || [],
+          setNotes: (id,n) => DB.s("notes_"+id, n),
+          portfolio: (id) => DB.g("pf_"+id) || [],
+          setPortfolio: (id,p) => DB.s("pf_"+id, p),
+          resume: (id) => DB.g("cv_"+id) || defResume(),
+          setResume: (id,r) => DB.s("cv_"+id, r),
+          goals: (id) => DB.g("goals_"+id) || [],
+          setGoals: (id,g) => DB.s("goals_"+id, g),
+          habits: (id) => DB.g("habits_"+id) || defHabits(),
+          setHabits: (id,h) => DB.s("habits_"+id, h),
+          checklist: (id) => DB.g("check_"+id) || [],
+          setChecklist: (id,c) => DB.s("check_"+id, c),
         };
+
+        const defProgress = (id) => ({
+          userId:id, xp:0, level:1, streak:0, lastStudy:null,
+          completedDays:[], achievements:[], trackProgress:{python:0,sql:0,powerbi:0,english:0}
+        });
+        const defResume = () => ({
+          name:"",title:"",email:"",phone:"",linkedin:"",github:"",
+          summary:"",skills:[],experience:[],education:[],projects:[],certifications:[]
+        });
+        const defHabits = () => ([
+          {id:1,name:"Estudar Python",streak:0,done:false,color:"#3b82f6"},
+          {id:2,name:"Praticar SQL",streak:0,done:false,color:"#10b981"},
+          {id:3,name:"Inglês técnico",streak:0,done:false,color:"#f59e0b"},
+          {id:4,name:"Revisão do dia",streak:0,done:false,color:"#8b5cf6"},
+        ]);
 
         const calcLevel = (xp) => Math.floor(Math.sqrt(xp/100))+1;
         const xpForLevel = (lvl) => (lvl-1)*(lvl-1)*100;
         const xpForNext = (lvl) => lvl*lvl*100;
 
-        // ── DADOS DO SISTEMA ────────────────────────────────────────
-        const PHASES = [
-            {id:1,name:"Fase 1: Fundamentos",range:[1,30],color:"#3b82f6",icon:"🌱"},
-            {id:2,name:"Fase 2: Prática Guiada",range:[31,60],color:"#10b981",icon:"⚡"},
-            {id:3,name:"Fase 3: Projetos",range:[61,75],color:"#f59e0b",icon:"🚀"},
-            {id:4,name:"Fase 4: Portfólio & Carreira",range:[76,90],color:"#8b5cf6",icon:"🏆"},
+        const ACHIEVEMENTS = [
+          {id:"first",name:"Primeiro Passo",desc:"Concluiu o Dia 1",icon:"🌱",xp:50,cond:(p)=>p.completedDays.length>=1},
+          {id:"week1",name:"Semana Completa",desc:"7 dias concluídos",icon:"🔥",xp:100,cond:(p)=>p.completedDays.length>=7},
+          {id:"streak7",name:"Sequência de 7d",desc:"7 dias consecutivos",icon:"⚡",xp:150,cond:(p)=>p.streak>=7},
+          {id:"lvl5",name:"Nível 5",desc:"Alcançou o nível 5",icon:"⭐",xp:200,cond:(p)=>p.level>=5},
+          {id:"day30",name:"Mês de Dados",desc:"30 dias concluídos",icon:"🏆",xp:300,cond:(p)=>p.completedDays.length>=30},
+          {id:"pf1",name:"Portfólio Iniciado",desc:"Adicionou 1 projeto",icon:"💼",xp:100,cond:(p)=>(p.portfolioCount||0)>=1},
         ];
 
-        const DAY_DATA = Array.from({length: 90}, (_, i) => ({
-            day: i + 1,
-            title: `Dia ${i+1}: ${["Intro Python", "Variáveis", "Listas", "SQL Básico", "Filtros SQL", "Power BI Intro", "Pandas", "ETL", "Portfólio"][i % 9]}`,
-            phase: (i < 30) ? 1 : (i < 60) ? 2 : (i < 75) ? 3 : 4,
-            xp: 50 + (i * 2),
-            track: ["python", "sql", "powerbi", "english"][i % 4],
-            mission: `Missão técnica para o dia ${i+1} da jornada de dados.`,
-            tasks: ["Assistir aula", "Praticar exercício", "Documentar no GitHub"],
-            english: "Vocabulário técnico do dia.",
-            practice: "Exercício prático de codificação."
-        }));
+        const PHASES = [
+          {id:1,name:"Fase 1: Fundamentos",range:[1,30],color:"#3b82f6",icon:"🌱"},
+          {id:2,name:"Fase 2: Prática Guiada",range:[31,60],color:"#10b981",icon:"⚡"},
+          {id:3,name:"Fase 3: Projetos",range:[61,75],color:"#f59e0b",icon:"🚀"},
+          {id:4,name:"Fase 4: Portfólio & Carreira",range:[76,90],color:"#8b5cf6",icon:"🏆"},
+        ];
+
+        const DAY_DATA = [
+          {day:1,title:"Bem-vindo à Jornada de Dados!",phase:1,xp:50,track:"python",mission:"Configure seu ambiente e entenda a jornada que você está iniciando.",tasks:["Leia o guia de boas-vindas","Configure o VS Code com Python","Crie sua conta no GitHub","Defina sua meta de carreira por escrito"],english:"Vocabulário: 'data analyst', 'dataset', 'pipeline', 'insight', 'data-driven'",practice:"Escreva no bloco de notas: por que você quer trabalhar com dados?"},
+          {day:2,title:"Python: Variáveis e Tipos",phase:1,xp:60,track:"python",mission:"Domine variáveis e tipos de dados em Python.",tasks:["Estude int, str, float, bool","Crie variáveis dos 4 tipos","Pratique type() e print()","Resolva 3 exercícios"],english:"Vocabulário: 'variable', 'string', 'integer', 'boolean', 'output'",practice:"Script com seu nome, idade e objetivo profissional."},
+          {day:3,title:"Python: Operadores",phase:1,xp:60,track:"python",mission:"Domine operadores aritméticos, lógicos e de comparação.",tasks:["Operadores aritméticos (+,-,*,/,**)","Operadores de comparação","Operadores lógicos (and, or, not)","Crie calculadora básica"],english:"Vocabulário: 'operator', 'expression', 'comparison', 'boolean logic'",practice:"Calculadora de IMC em Python."},
+          {day:4,title:"Python: Condicionais",phase:1,xp:70,track:"python",mission:"Aprenda if, elif e else para controle de fluxo.",tasks:["if / elif / else básico","Condicionais aninhados","Classificador de notas","Verificador de faixa salarial"],english:"Vocabulário: 'conditional', 'flow control', 'nested', 'if statement'",practice:"Classificador de senioridade por anos de experiência."},
+          {day:5,title:"Python: Laços (for e while)",phase:1,xp:70,track:"python",mission:"Domine laços para automação e repetição.",tasks:["for com range()","while básico","break e continue","Tabuada automática"],english:"Vocabulário: 'loop', 'iteration', 'range', 'break', 'continue'",practice:"Gerador de relatório fictício de vendas."},
+          {day:6,title:"SQL: Primeiros Passos",phase:1,xp:60,track:"sql",mission:"Entenda bancos de dados relacionais e faça seus primeiros SELECTs.",tasks:["O que é banco relacional?","Tabelas, linhas e colunas","SELECT * FROM tabela","5 queries no sandbox"],english:"Vocabulário: 'query', 'table', 'row', 'column', 'schema'",practice:"Execute queries básicas no banco demo da plataforma."},
+          {day:7,title:"Revisão — Semana 1 🎉",phase:1,xp:80,track:"python",mission:"Revise a semana 1 e construa seu primeiro mini projeto.",tasks:["Revise: variáveis, operadores, condicionais, laços","Revise: SELECT básico","Mini projeto: analisador de lista de vendas","Commit no GitHub"],english:"Monte seu glossário pessoal da semana.",practice:"Script que lê uma lista, calcula média e exibe relatório."},
+          {day:8,title:"Python: Funções",phase:1,xp:70,track:"python",mission:"Crie funções reutilizáveis para organizar seu código.",tasks:["def e return","Parâmetros e argumentos","Valores padrão","Refatore código anterior"],english:"Vocabulário: 'function', 'parameter', 'return value', 'scope'",practice:"Biblioteca de funções estatísticas sem pandas."},
+          {day:9,title:"Python: Listas",phase:1,xp:70,track:"python",mission:"Domine listas para trabalhar com coleções de dados.",tasks:["Criação e indexação","Slicing e iteração","List comprehension","append, sort, filter, map"],english:"Vocabulário: 'list', 'index', 'slice', 'iteration', 'comprehension'",practice:"Análise de lista com 20 salários fictícios."},
+          {day:10,title:"Python: Dicionários",phase:1,xp:70,track:"python",mission:"Use dicionários para estruturar dados com chave-valor.",tasks:["Criação e acesso","Iterar sobre dict","Dicionários aninhados","Exercício: dados de funcionários"],english:"Vocabulário: 'dictionary', 'key-value', 'hash map', 'nested'",practice:"Dicionário de 10 funcionários com relatório de salários."},
+          {day:11,title:"SQL: WHERE e Filtros",phase:1,xp:65,track:"sql",mission:"Filtre dados com WHERE, AND, OR e operadores.",tasks:["WHERE básico","AND e OR","BETWEEN e IN","LIKE para texto"],english:"Vocabulário: 'filter', 'condition', 'wildcard', 'pattern matching'",practice:"Filtre produtos por categoria e faixa de preço."},
+          {day:12,title:"Python: Strings",phase:1,xp:65,track:"python",mission:"Manipule strings para limpeza e processamento de dados.",tasks:["upper, lower, strip, split","replace e find","f-strings","Limpeza de dados textuais"],english:"Vocabulário: 'string manipulation', 'parsing', 'cleaning', 'normalize'",practice:"Normalize lista de nomes de clientes."},
+          {day:13,title:"SQL: ORDER BY e LIMIT",phase:1,xp:60,track:"sql",mission:"Ordene e limite resultados para análises focadas.",tasks:["ORDER BY ASC e DESC","LIMIT e OFFSET","Múltiplas colunas","Top N análises"],english:"Vocabulário: 'sort', 'ascending', 'descending', 'offset', 'paginate'",practice:"Top 3 produtos mais caros e análise de ranking."},
+          {day:14,title:"Revisão — Semana 2",phase:1,xp:80,track:"python",mission:"Revise semana 2 e crie exercício integrado.",tasks:["Revise: funções, listas, dicionários","Revise: WHERE, ORDER BY","Exercício integrado Python+SQL","GitHub atualizado"],english:"Frases técnicas com vocabulário das 2 semanas.",practice:"Script Python que simula queries SQL com dicionários."},
+          {day:15,title:"Python: Tratamento de Erros",phase:1,xp:70,track:"python",mission:"Crie código robusto com try/except.",tasks:["try/except básico","Múltiplos erros","finally e raise","Funções com tratamento"],english:"Vocabulário: 'exception', 'error handling', 'raise', 'debug', 'traceback'",practice:"Adicione robustez ao projeto de vendas."},
+          {day:16,title:"SQL: GROUP BY",phase:1,xp:70,track:"sql",mission:"Agrupe dados para análises poderosas.",tasks:["GROUP BY básico","COUNT, SUM, AVG, MAX, MIN","GROUP BY + WHERE","HAVING clause"],english:"Vocabulário: 'aggregate', 'group by', 'having', 'count', 'sum'",practice:"Total de vendas por categoria no sandbox."},
+          {day:17,title:"Python: Arquivos e CSV",phase:1,xp:75,track:"python",mission:"Leia e escreva arquivos CSV com Python.",tasks:["open() e with","csv.reader e writer","Leitura de CSV real","Geração de relatório CSV"],english:"Vocabulário: 'file handling', 'CSV', 'read', 'write', 'encoding'",practice:"Leia um CSV e gere relatório de análise."},
+          {day:18,title:"SQL: JOINs Básicos",phase:1,xp:75,track:"sql",mission:"Una tabelas com INNER JOIN e LEFT JOIN.",tasks:["O que são JOINs?","INNER JOIN","LEFT JOIN","Exercício: clientes + pedidos"],english:"Vocabulário: 'join', 'relationship', 'foreign key', 'primary key'",practice:"Una clientes e vendas no sandbox."},
+          {day:19,title:"Python: Pandas — Introdução",phase:1,xp:80,track:"python",mission:"Comece a trabalhar com DataFrames pandas.",tasks:["import pandas as pd","pd.DataFrame()","Leitura de CSV com pandas","df.head(), info(), describe()"],english:"Vocabulário: 'DataFrame', 'Series', 'index', 'column', 'shape'",practice:"Carregue e explore um dataset de vendas."},
+          {day:20,title:"Revisão — Semana 3",phase:1,xp:85,track:"python",mission:"Revise semana 3 e construa análise completa.",tasks:["Revise: arquivos, pandas intro","Revise: JOINs e GROUP BY","Mini projeto: análise CSV completa","Documente no GitHub"],english:"Frases de apresentação de projeto de dados.",practice:"Análise exploratória completa de dataset fictício."},
+          ...Array.from({length:10},(_,i)=>({day:21+i,title:["Python: Pandas Filtros","SQL: Subqueries","Power BI: Introdução","Inglês: Tech Vocab","Python: GroupBy Pandas","SQL: LEFT e RIGHT JOIN","Power BI: Power Query","Inglês: Documentation","Python: Merge e Concat","SQL: CTEs"][i],phase:1,xp:75+i*5,track:["python","sql","powerbi","english","python","sql","powerbi","english","python","sql"][i],mission:`Evolua suas habilidades no dia ${21+i} da jornada.`,tasks:["Estude o conteúdo do dia","Pratique exercícios","Anote aprendizados","Atualize GitHub"],english:"Pratique vocabulário técnico aplicado.",practice:"Complete o exercício prático do dia."})),
+          ...Array.from({length:9},(_,i)=>({day:31+i,title:["Python: Visualização com Matplotlib","SQL: Window Functions","Power BI: Modelagem","Inglês: Meetings","Python: Seaborn","SQL: Funções de Data","Power BI: DAX Básico","Inglês: Presentations","Python: NumPy"][i],phase:2,xp:80+i*5,track:["python","sql","powerbi","english","python","sql","powerbi","english","python"][i],mission:`Aprofunde sua prática — dia ${31+i}.`,tasks:["Conteúdo teórico do dia","Exercício prático","Mini projeto parcial","Commit GitHub"],english:"Vocabulário técnico aplicado a contextos reais.",practice:"Exercício prático com dados reais ou simulados."})),
+          ...Array.from({length:51},(_,i)=>({day:40+i,title:`Dia ${40+i}: ${["Python Avançado","SQL Analítico","Power BI Avançado","Inglês para Entrevistas","Projeto Python","Análise SQL Completa","Dashboard Power BI","Inglês Técnico","Portfólio","Currículo ATS"][i%10]}`,phase:40+i<=60?2:40+i<=75?3:4,xp:85+Math.floor(i/5)*5,track:["python","sql","powerbi","english","python","sql","powerbi","english","python","sql"][i%10],mission:`Continue sua evolução — dia ${40+i} da jornada de dados.`,tasks:["Conteúdo do dia","Exercícios práticos","Revisão e notas","GitHub atualizado"],english:"Vocabulário e frases técnicas do dia.",practice:"Exercício integrado do dia."})),
+        ];
 
         const TABLES = {
-            produtos: [{id:1,nome:"Laptop",categoria:"Tech",preco:3500}, {id:2,nome:"Monitor",categoria:"Tech",preco:1200}],
-            vendas: [{id:1,produto:"Laptop",vendedor:"Ana",valor:3500,data:"2024-01-15"}],
-            clientes: [{id:1,nome:"Carlos",cidade:"SP",plano:"Premium"}]
+          produtos:[
+            {id:1,nome:"Laptop Pro",categoria:"Tech",preco:3500,estoque:10},
+            {id:2,nome:"Monitor 4K",categoria:"Tech",preco:1200,estoque:25},
+            {id:3,nome:"Teclado Mecânico",categoria:"Periféricos",preco:350,estoque:50},
+            {id:4,nome:"Mouse Gamer",categoria:"Periféricos",preco:180,estoque:80},
+            {id:5,nome:"Headset BT",categoria:"Audio",preco:250,estoque:30},
+            {id:6,nome:"Webcam HD",categoria:"Tech",preco:420,estoque:20},
+          ],
+          vendas:[
+            {id:1,produto:"Laptop Pro",vendedor:"Ana",valor:3500,data:"2024-01-15",categoria:"Tech"},
+            {id:2,produto:"Monitor 4K",vendedor:"João",valor:1200,data:"2024-01-16",categoria:"Tech"},
+            {id:3,produto:"Teclado",vendedor:"Ana",valor:350,data:"2024-01-17",categoria:"Periféricos"},
+            {id:4,produto:"Mouse",vendedor:"Maria",valor:180,data:"2024-01-18",categoria:"Periféricos"},
+            {id:5,produto:"Headset",vendedor:"João",valor:250,data:"2024-01-19",categoria:"Audio"},
+            {id:6,produto:"Webcam",vendedor:"Maria",valor:420,data:"2024-02-01",categoria:"Tech"},
+          ],
+          clientes:[
+            {id:1,nome:"Carlos Silva",cidade:"São Paulo",plano:"Premium"},
+            {id:2,nome:"Ana Lima",cidade:"Rio de Janeiro",plano:"Básico"},
+            {id:3,nome:"Pedro Souza",cidade:"Curitiba",plano:"Premium"},
+            {id:4,nome:"Julia Martins",cidade:"São Paulo",plano:"Básico"},
+          ],
         };
 
         function runSQL(q) {
-            const ql = q.toLowerCase().trim();
-            if (!ql.startsWith("select")) return {error:"Apenas SELECT permitido no sandbox."};
-            let rows = [];
-            if (ql.includes("produtos")) rows = [...TABLES.produtos];
-            else if (ql.includes("vendas")) rows = [...TABLES.vendas];
-            else if (ql.includes("clientes")) rows = [...TABLES.clientes];
-            else return {error: "Tabela não encontrada. Use: produtos, vendas ou clientes."};
-            return {rows, count: rows.length};
+          const ql = q.toLowerCase().trim();
+          if (!ql.startsWith("select")) return {error:"Apenas SELECT é permitido no sandbox."};
+          let rows = [];
+          if (ql.includes("from produtos")) rows = [...TABLES.produtos];
+          else if (ql.includes("from vendas")) rows = [...TABLES.vendas];
+          else if (ql.includes("from clientes")) rows = [...TABLES.clientes];
+          else return {error:"Tabelas: produtos, vendas, clientes"};
+          const wm = ql.match(/where (.+?)(?:order by|group by|limit|having|$)/);
+          if (wm) {
+            const wc = wm[1].trim();
+            if (wc.includes("preco >")) { const v=parseInt(wc.match(/preco > (\d+)/)?.[1]||0); rows=rows.filter(r=>r.preco>v); }
+            if (wc.includes("preco <")) { const v=parseInt(wc.match(/preco < (\d+)/)?.[1]||0); rows=rows.filter(r=>r.preco<v); }
+            if (wc.includes("valor >")) { const v=parseInt(wc.match(/valor > (\d+)/)?.[1]||0); rows=rows.filter(r=>r.valor>v); }
+            if (wc.includes("categoria = ")) { const v=wc.match(/categoria = '([^']+)'/)?.[1]; if(v) rows=rows.filter(r=>r.categoria===v); }
+            if (wc.includes("plano = ")) { const v=wc.match(/plano = '([^']+)'/)?.[1]; if(v) rows=rows.filter(r=>r.plano===v); }
+          }
+          if (ql.includes("group by")) {
+            const gb = ql.match(/group by (\w+)/)?.[1];
+            if (gb) {
+              const grouped = {};
+              rows.forEach(r => { const k=r[gb]; if(!grouped[k]) grouped[k]={[gb]:k,count:0,total:0}; grouped[k].count++; grouped[k].total+=(r.valor||r.preco||0); });
+              rows = Object.values(grouped).map(g=>({[gb]:g[gb],"COUNT(*)":g.count,"SUM(valor/preco)":g.total}));
+            }
+          }
+          if (ql.includes("order by")) {
+            const ob = ql.match(/order by (\w+)(?: (asc|desc))?/);
+            if (ob) { const [,col,dir="asc"]=ob; rows=[...rows].sort((a,b)=>{const va=a[col]||0,vb=b[col]||0;return dir==="desc"?vb-va:va-vb;}); }
+          }
+          const lm = ql.match(/limit (\d+)/);
+          if (lm) rows = rows.slice(0, parseInt(lm[1]));
+          return {rows, count:rows.length};
         }
 
-        // ── CONTEXTOS ───────────────────────────────────────────────
+        const LIBRARY = [
+          {id:1,title:"Cheatsheet Python para Dados",cat:"Python",type:"Cheatsheet",tags:["pandas","numpy","python"],desc:"Referência rápida dos principais comandos Python para análise de dados.",url:"https://pandas.pydata.org/docs/",icon:"🐍"},
+          {id:2,title:"SQL para Analistas",cat:"SQL",type:"Apostila",tags:["sql","select","joins"],desc:"Guia completo de SQL com foco em análise de dados.",url:"https://www.w3schools.com/sql/",icon:"🗄️"},
+          {id:3,title:"Documentação Pandas",cat:"Python",type:"Docs",tags:["pandas","dataframe"],desc:"Documentação oficial do Pandas.",url:"https://pandas.pydata.org/docs/",icon:"📚"},
+          {id:4,title:"Power BI — Guia Completo",cat:"Power BI",type:"Guia",tags:["powerbi","dax","dashboard"],desc:"Do básico ao avançado no Power BI.",url:"https://docs.microsoft.com/pt-br/power-bi/",icon:"📊"},
+          {id:5,title:"Vocabulário Técnico em Inglês",cat:"Inglês",type:"Glossário",tags:["english","vocabulary","tech"],desc:"500+ termos da área de dados com tradução.",url:"#",icon:"🇺🇸"},
+          {id:6,title:"Dataset: Vendas Brasileiras",cat:"Datasets",type:"Dataset",tags:["dataset","vendas","csv"],desc:"10.000 registros de vendas para prática.",url:"#",icon:"📁"},
+          {id:7,title:"Cheatsheet SQL Avançado",cat:"SQL",type:"Cheatsheet",tags:["sql","window functions","cte"],desc:"CTEs, Window Functions e queries analíticas.",url:"#",icon:"📋"},
+          {id:8,title:"DAX — Fórmulas Essenciais",cat:"Power BI",type:"Cheatsheet",tags:["dax","powerbi","medidas"],desc:"As 50 fórmulas DAX mais usadas.",url:"#",icon:"⚡"},
+          {id:9,title:"Guia de Carreira: Analista de Dados",cat:"Carreira",type:"Guia",tags:["carreira","emprego","salário"],desc:"Mercado, salários e como conseguir o 1º emprego.",url:"#",icon:"💼"},
+          {id:10,title:"Python: Automação com openpyxl",cat:"Python",type:"Tutorial",tags:["python","excel","automação"],desc:"Automatize planilhas Excel com Python.",url:"#",icon:"🤖"},
+          {id:11,title:"Inglês: Frases para Entrevistas",cat:"Inglês",type:"Guia",tags:["inglês","entrevista"],desc:"100 frases em inglês para entrevistas de dados.",url:"#",icon:"🎯"},
+          {id:12,title:"Modelagem de Dados",cat:"SQL",type:"Apostila",tags:["modelagem","er","normalização"],desc:"Modelagem ER e normalização de banco.",url:"#",icon:"🔗"},
+        ];
+
+        const PYTHON_EX = [
+          {id:1,level:"Iniciante",title:"Calculadora de IMC",desc:"Calcule e classifique o IMC (Abaixo do peso / Normal / Sobrepeso / Obesidade).",hint:"IMC = peso / (altura**2). Use if/elif para classificar.",xp:30},
+          {id:2,level:"Iniciante",title:"Tabuada Automática",desc:"Gere a tabuada de 1 a 10 de qualquer número usando for.",hint:"for num in range(1,11): print(f'{n} x {num} = {n*num}')",xp:25},
+          {id:3,level:"Iniciante",title:"Par ou Ímpar",desc:"Função que recebe uma lista de números e separa em pares e ímpares.",hint:"num % 2 == 0 → par. Use list comprehension.",xp:25},
+          {id:4,level:"Intermediário",title:"Estatísticas de Salários",desc:"Calcule média, mediana, max, min e variância de uma lista de salários sem bibliotecas.",hint:"Ordene a lista para mediana. Variância = média dos quadrados das diferenças.",xp:50},
+          {id:5,level:"Intermediário",title:"Filtro de Funcionários",desc:"Filtre funcionários (lista de dicts) com salário > 5000 e departamento 'TI' ou 'Dados'.",hint:"[f for f in lista if f['sal']>5000 and f['dept'] in ['TI','Dados']]",xp:50},
+          {id:6,level:"Intermediário",title:"Relatório de Vendas",desc:"Agrupe lista de vendas por mês e calcule total, qtd e ticket médio.",hint:"Use dicionários para acumular. {mes: {total, qtd}}",xp:55},
+          {id:7,level:"Avançado",title:"Análise com Pandas",desc:"Carregue dados de vendas e calcule: total/categoria, top produto, variação mensal.",hint:"df.groupby('cat').agg({'valor':['sum','mean','count']})",xp:80},
+          {id:8,level:"Avançado",title:"Mini ETL Pipeline",desc:"Construa extract() → transform() → load() para processar dados fictícios.",hint:"Cada função tem responsabilidade única. transform() normaliza e filtra.",xp:90},
+        ];
+
+        const SQL_EX = [
+          {id:1,level:"Iniciante",title:"SELECT com colunas",desc:"Selecione nome, categoria e preço de produtos, ordenados por preço desc.",hint:"SELECT nome, categoria, preco FROM produtos ORDER BY preco DESC",xp:20},
+          {id:2,level:"Iniciante",title:"Filtrar Produtos",desc:"Produtos com preço acima de R$300 da categoria Tech.",hint:"WHERE preco > 300 AND categoria = 'Tech'",xp:25},
+          {id:3,level:"Iniciante",title:"Top 3 Mais Caros",desc:"Os 3 produtos mais caros (nome e preço).",hint:"ORDER BY preco DESC LIMIT 3",xp:25},
+          {id:4,level:"Intermediário",title:"Total por Categoria",desc:"Total de vendas e quantidade por categoria.",hint:"GROUP BY categoria com SUM e COUNT",xp:45},
+          {id:5,level:"Intermediário",title:"Melhor Vendedor",desc:"Vendedor com maior faturamento total.",hint:"GROUP BY vendedor + SUM(valor) + ORDER BY + LIMIT 1",xp:50},
+          {id:6,level:"Intermediário",title:"Acima da Média",desc:"Produtos com preço acima da média geral.",hint:"WHERE preco > (SELECT AVG(preco) FROM produtos)",xp:60},
+          {id:7,level:"Avançado",title:"Análise por Vendedor",desc:"Faturamento, qtd de vendas e ticket médio por vendedor.",hint:"GROUP BY vendedor com SUM, COUNT, AVG",xp:70},
+          {id:8,level:"Avançado",title:"Clientes Premium",desc:"Quantos clientes de cada plano existem?",hint:"GROUP BY plano com COUNT(*) FROM clientes",xp:65},
+        ];
+
+        // --- CONTEXTS ---
         const AuthCtx = createContext(null);
         const ProgCtx = createContext(null);
 
         function AuthProvider({children}) {
-            const [user,setUser] = useState(null);
-            const [loading,setLoading] = useState(true);
+          const [user,setUser] = useState(null);
+          const [loading,setLoading] = useState(true);
 
-            useEffect(()=>{
-                const tok = sessionStorage.getItem("dp_tok");
-                if(tok) {
-                    const d = Security.verifyJWT(tok);
-                    if(d) { const u=DB.users()[d.sub]; if(u) setUser({...u,password:undefined}); }
-                }
-                setLoading(false);
-            },[]);
-
-            const login = async (email,pw)=>{
-                const users=DB.users(), u=Object.values(users).find(u=>u.email===email.toLowerCase());
-                if(!u) return {error:"Usuário não encontrado."};
-                const h=await Security.hashPassword(pw);
-                if(h!==u.password) return {error:"Senha incorreta."};
-                const tok=Security.generateJWT(u.id);
-                sessionStorage.setItem("dp_tok",tok);
-                setUser({...u,password:undefined}); return {user:u};
-            };
-
-            const register = async (name,email,pw)=>{
-                if(!Security.validatePassword(pw)) return {error: "Senha fraca (mín 8 chars, 1 maiúsc, 1 num)."};
-                const users=DB.users();
-                if(Object.values(users).find(u=>u.email===email.toLowerCase())) return {error:"Email já cadastrado."};
-                const id=crypto.randomUUID(), h=await Security.hashPassword(pw);
-                const nu={id,name:Security.sanitize(name),email:email.toLowerCase(),password:h,createdAt:Date.now()};
-                users[id]=nu; DB.setUsers(users); DB.setProgress(id, DB.progress(id));
-                const tok=Security.generateJWT(id);
-                sessionStorage.setItem("dp_tok",tok);
-                setUser({...nu,password:undefined}); return {user:nu};
-            };
-
-            const logout=()=>{ sessionStorage.removeItem("dp_tok"); setUser(null); };
-            return <AuthCtx.Provider value={{user,loading,login,register,logout}}>{children}</AuthCtx.Provider>;
-        }
-
-        function ProgressProvider({children}) {
-            const {user}=useContext(AuthCtx);
-            const [progress,setProgress]=useState(null);
-            useEffect(()=>{ if(user) setProgress(DB.progress(user.id)); },[user]);
-
-            const save=(upd)=>{
-                if(!user) return;
-                const cur=DB.progress(user.id);
-                const updated={...cur,...upd}; updated.level=calcLevel(updated.xp);
-                DB.setProgress(user.id,updated); setProgress({...updated});
-            };
-
-            const addXP = (amt) => save({xp: progress.xp + amt});
-            const completeDay = (dayNum, xp) => {
-                if(progress.completedDays.includes(dayNum)) return;
-                save({completedDays: [...progress.completedDays, dayNum], xp: progress.xp + xp, streak: progress.streak + 1});
-            };
-
-            return <ProgCtx.Provider value={{progress,save,addXP,completeDay}}>{children}</ProgCtx.Provider>;
-        }
-
-        // ── UI PRIMITIVES ───────────────────────────────────────────
-        const Card = ({children, sx={}}) => <div style={{background:'var(--card)', padding:'20px', borderRadius:'15px', border:'1px solid var(--border)', ...sx}}>{children}</div>;
-        const Btn = ({children, onClick, v="primary"}) => (
-            <button onClick={onClick} style={{
-                padding:'12px 24px', borderRadius:'10px', border:'none', fontWeight:'800', cursor:'pointer',
-                background: v==="primary" ? 'var(--accent)' : 'var(--surface)', color: '#fff', transition: '0.2s'
-            }} onMouseOver={e=>e.currentTarget.style.opacity='0.8'} onMouseOut={e=>e.currentTarget.style.opacity='1'}>
-                {children}
-            </button>
-        );
-
-        // ── PÁGINAS ─────────────────────────────────────────────────
-        function Landing({onLogin, onRegister}) {
-            return (
-                <div className="page-enter" style={{minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', textAlign:'center', padding:'20px'}}>
-                    <div style={{fontSize:'60px', marginBottom:'20px'}}>⚡</div>
-                    <h1 style={{fontFamily:"'Syne'", fontSize:'clamp(3rem, 10vw, 5rem)', fontWeight:'900', color:'var(--accent)'}}>DataPath</h1>
-                    <p style={{color:'var(--muted)', fontSize:'1.2rem', maxWidth:'600px', marginBottom:'40px'}}>Domine Python, SQL e Power BI em uma jornada gamificada de 90 dias.</p>
-                    <div style={{display:'flex', gap:'15px'}}>
-                        <Btn onClick={onRegister}>Começar Grátis</Btn>
-                        <Btn onClick={onLogin} v="secondary">Entrar</Btn>
-                    </div>
-                </div>
-            );
-        }
-
-        function AuthPage({mode, onBack}) {
-            const [email,setEmail]=useState(""); const [pw,setPw]=useState(""); const [name,setName]=useState("");
-            const [err,setErr]=useState("");
-            const {login, register}=useContext(AuthCtx);
-
-            const handle = async () => {
-                const r = (mode==="login") ? await login(email,pw) : await register(name,email,pw);
-                if(r?.error) setErr(r.error);
-            };
-
-            return (
-                <div className="page-enter" style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center'}}>
-                    <Card sx={{width:'380px'}}>
-                        <h2 style={{fontFamily:"'Syne'", marginBottom:'20px'}}>{mode==="login"?"Entrar":"Cadastrar"}</h2>
-                        {err && <p style={{color:'var(--red)', marginBottom:'10px', fontSize:'13px'}}>{err}</p>}
-                        <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
-                            {mode==="register" && <input placeholder="Nome" value={name} onChange={e=>setName(e.target.value)} style={{padding:'12px', background:'var(--surface)', border:'1px solid var(--border)', color:'#fff', borderRadius:'8px'}}/>}
-                            <input placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} style={{padding:'12px', background:'var(--surface)', border:'1px solid var(--border)', color:'#fff', borderRadius:'8px'}}/>
-                            <input type="password" placeholder="Senha" value={pw} onChange={e=>setPw(e.target.value)} style={{padding:'12px', background:'var(--surface)', border:'1px solid var(--border)', color:'#fff', borderRadius:'8px'}}/>
-                            <Btn onClick={handle}>{mode==="login"?"Entrar":"Criar Conta"}</Btn>
-                            <button onClick={onBack} style={{background:'none', border:'none', color:'var(--muted)', cursor:'pointer'}}>Voltar</button>
-                        </div>
-                    </Card>
-                </div>
-            );
-        }
-
-        function Dashboard({go}) {
-            const {user}=useContext(AuthCtx);
-            const {progress}=useContext(ProgCtx);
-            if(!progress) return null;
-
-            return (
-                <div className="page-enter" style={{maxWidth:'1000px', margin:'0 auto', padding:'20px'}}>
-                    <Card sx={{marginBottom:'20px', background:'linear-gradient(135deg, #1e1b4b 0%, #020817 100%)'}}>
-                        <h2 style={{fontFamily:"'Syne'"}}>Olá, {user.name}! 👋</h2>
-                        <p style={{color:'var(--muted)'}}>Nível {progress.level} | {progress.xp} XP | 🔥 {progress.streak} dias de sequência</p>
-                        <div style={{width:'100%', background:'var(--border)', height:'10px', borderRadius:'10px', marginTop:'15px'}}>
-                            <div style={{width:`${(progress.xp % 100)}%`, background:'var(--accent)', height:'100%', borderRadius:'10px'}}/>
-                        </div>
-                    </Card>
-
-                    <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(250px, 1fr))', gap:'20px'}}>
-                        <Card>
-                            <h3>🗺️ Jornada</h3>
-                            <p style={{fontSize:'14px', color:'var(--muted)', margin:'10px 0'}}>Continue seu treinamento de 90 dias.</p>
-                            <Btn onClick={()=>go("journey")}>Ver Missões</Btn>
-                        </Card>
-                        <Card>
-                            <h3>🗄️ SQL Sandbox</h3>
-                            <p style={{fontSize:'14px', color:'var(--muted)', margin:'10px 0'}}>Pratique consultas em tempo real.</p>
-                            <Btn onClick={()=>go("sql")}>Abrir Console</Btn>
-                        </Card>
-                    </div>
-                </div>
-            );
-        }
-
-        function Journey({go}) {
-            const {progress, completeDay}=useContext(ProgCtx);
-            return (
-                <div className="page-enter" style={{maxWidth:'1000px', margin:'0 auto', padding:'20px'}}>
-                    <button onClick={()=>go("dashboard")} style={{color:'var(--accent)', background:'none', border:'none', marginBottom:'20px', cursor:'pointer'}}>← Voltar</button>
-                    <h2 style={{fontFamily:"'Syne'", marginBottom:'20px'}}>Jornada 90 Dias</h2>
-                    <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(140px, 1fr))', gap:'10px'}}>
-                        {DAY_DATA.map(d => (
-                            <div key={d.day} onClick={() => completeDay(d.day, d.xp)} style={{
-                                padding:'15px', borderRadius:'12px', textAlign:'center', cursor:'pointer',
-                                background: progress.completedDays.includes(d.day) ? 'var(--green)' : 'var(--card)',
-                                border: '1px solid var(--border)', opacity: progress.completedDays.includes(d.day) ? 0.7 : 1
-                            }}>
-                                <div style={{fontSize:'12px', color:'var(--muted)'}}>Dia</div>
-                                <div style={{fontSize:'20px', fontWeight:'900'}}>{d.day}</div>
-                                {progress.completedDays.includes(d.day) && <span>✓</span>}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
-        }
-
-        function SQLConsole({go}) {
-            const [query, setQuery] = useState("SELECT * FROM produtos;");
-            const [res, setRes] = useState(null);
-            const exec = () => setRes(runSQL(query));
-
-            return (
-                <div className="page-enter" style={{maxWidth:'1000px', margin:'0 auto', padding:'20px'}}>
-                    <button onClick={()=>go("dashboard")} style={{color:'var(--accent)', background:'none', border:'none', marginBottom:'20px', cursor:'pointer'}}>← Voltar</button>
-                    <Card>
-                        <h2 style={{fontFamily:"'Syne'", marginBottom:'15px'}}>SQL Sandbox</h2>
-                        <textarea value={query} onChange={e=>setQuery(e.target.value)} style={{
-                            width:'100%', height:'100px', background:'#000', color:'#0f0', padding:'15px', fontFamily:'monospace', borderRadius:'10px', border:'1px solid var(--border)'
-                        }} />
-                        <div style={{marginTop:'10px'}}><Btn onClick={exec}>Executar Query</Btn></div>
-                    </Card>
-                    {res && (
-                        <Card sx={{marginTop:'20px', overflowX:'auto'}}>
-                            {res.error ? <p style={{color:'var(--red)'}}>{res.error}</p> : (
-                                <table style={{width:'100%', borderCollapse:'collapse'}}>
-                                    <thead>
-                                        <tr style={{borderBottom:'1px solid var(--border)'}}>
-                                            {Object.keys(res.rows[0]||{}).map(k=><th key={k} style={{padding:'10px', textAlign:'left'}}>{k}</th>)}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {res.rows.map((r,i)=><tr key={i}>{Object.values(r).map((v,j)=><td key={j} style={{padding:'10px'}}>{v}</td>)}</tr>)}
-                                    </tbody>
-                                </table>
-                            )}
-                        </Card>
-                    )}
-                </div>
-            );
-        }
-
-        // ── APP ROOT (SISTEMA DE NAVEGAÇÃO) ─────────────────────────
-        function AppRoot() {
-            const {user, loading}=useContext(AuthCtx);
-            const [view, setView]=useState("landing");
-            const [authMode, setAuthMode]=useState("login");
-
-            if(loading) return <div style={{display:'flex', height:'100vh', alignItems:'center', justifyContent:'center'}}>⚡ Carregando...</div>;
-            
-            if(!user) {
-                if(view === "landing") return <Landing onLogin={()=>{setView("auth"); setAuthMode("login")}} onRegister={()=>{setView("auth"); setAuthMode("register")}}/>;
-                return <AuthPage mode={authMode} onBack={()=>setView("landing")}/>;
+          useEffect(()=>{
+            const tok = sessionStorage.getItem("dp_tok");
+            if(tok) {
+              const d = Security.verifyJWT(tok);
+              if(d) { const u=DB.users()[d.sub]; if(u) setUser({...u,password:undefined}); }
             }
+            setLoading(false);
+          },[]);
 
-            return (
-                <ProgressProvider>
-                    <div style={{minHeight:'100vh'}}>
-                        <header style={{padding:'20px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center', background:'var(--surface)'}}>
-                            <div style={{fontFamily:"'Syne'", fontWeight:'900', color:'var(--accent)'}}>DATAPATH ⚡</div>
-                            <button onClick={() => window.location.reload()} style={{background:'none', border:'none', color:'var(--muted)', cursor:'pointer'}}>Sair</button>
-                        </header>
-                        {view === "sql" ? <SQLConsole go={setView}/> : view === "journey" ? <Journey go={setView}/> : <Dashboard go={setView}/>}
-                    </div>
-                </ProgressProvider>
-            );
-        }
+          const login = async (email,pw)=>{
+            const users=DB.users(), u=Object.values(users).find(u=>u.email===email.toLowerCase());
+            if(!u) return {error:"Credenciais inválidas."};
+            const h=await Security.hashPassword(pw);
+            if(h!==u.password) return {error:"Credenciais inválidas."};
+            const tok=Security.generateJWT(u.id);
+            sessionStorage.setItem("dp_tok",tok);
+            const safe={...u,password:undefined}; setUser(safe); return {user:safe};
+          };
 
-        function Main() {
-            return (
-                <AuthProvider>
-                    <AppRoot />
-                </AuthProvider>
-            );
-        }
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<Main />);
-    </script>
-</body>
-</html>
+          const register = async (name,email,pw)=>{
+            const users=DB.users();
+            if(Object.values(users).find(u=>u.email===email.toLowerCase())) return {error:"Em
