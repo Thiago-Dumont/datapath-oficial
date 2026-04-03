@@ -51,7 +51,7 @@ const C = {
   blue: "#58a6ff",
 };
 
-};
+
 
 // ── BANCO DE DADOS (LOCALSTORAGE) ─────────────────────────────
 const DB = {
