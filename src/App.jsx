@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 
 // ============================================================
-// DATAPATH â€” PLATAFORMA DE ENSINO GAMIFICADO PARA DADOS
-// SeguranÃ§a: hash SHA-256, JWT, rate limiting, XSS sanitization
-// PersistÃªncia: localStorage (produÃ§Ã£o â†’ PostgreSQL + Node/Express)
+// DATAPATH — PLATAFORMA DE ENSINO GAMIFICADO PARA DADOS
+// Design: Dark Mode de Alto Contraste (Cores corrigidas)
 // ============================================================
 
 const Security = {
@@ -34,6 +33,25 @@ const RL = { _a: {}, check(k, max=5, win=900000) {
   this._a[k].push(now); return true;
 }};
 
+// ── CORES (CORRIGIDAS PARA ALTO CONTRASTE) ─────────────────────
+const C = {
+  bg: "#050507",        // Fundo quase preto (máximo contraste)
+  surface: "#111827",   // Azul marinho muito escuro para áreas de destaque
+  card: "#1f2937",      // Cinza azulado escuro para cards (visível sobre o fundo)
+  border: "#374151",    // Borda clara para separar os elementos
+  border2: "#4b5563",
+  text: "#f9fafb",      // Branco puro para leitura
+  muted: "#9ca3af",     // Cinza para textos secundários
+  faint: "#6b7280",
+  accent: "#6366f1",    // Indigo (Destaque principal)
+  accent2: "#a855f7",   // Roxo (Conquistas)
+  green: "#10b981", 
+  yellow: "#f59e0b", 
+  red: "#ef4444", 
+  blue: "#3b82f6",
+};
+
+// ── BANCO DE DADOS (LOCALSTORAGE) ─────────────────────────────
 const DB = {
   g: (k) => { try { return JSON.parse(localStorage.getItem("dp_"+k)||"null"); } catch { return null; }},
   s: (k,v) => { try { localStorage.setItem("dp_"+k, JSON.stringify(v)); } catch {} },
@@ -64,173 +82,40 @@ const defResume = () => ({
   summary:"",skills:[],experience:[],education:[],projects:[],certifications:[]
 });
 const defHabits = () => ([
-  {id:1,name:"Estudar Python",streak:0,done:false,color:"#3b82f6"},
-  {id:2,name:"Praticar SQL",streak:0,done:false,color:"#10b981"},
-  {id:3,name:"InglÃªs tÃ©cnico",streak:0,done:false,color:"#f59e0b"},
-  {id:4,name:"RevisÃ£o do dia",streak:0,done:false,color:"#8b5cf6"},
+  {id:1,name:"Estudar Python",streak:0,done:false,color:C.blue},
+  {id:2,name:"Praticar SQL",streak:0,done:false,color:C.green},
+  {id:3,name:"Inglês técnico",streak:0,done:false,color:C.yellow},
+  {id:4,name:"Revisão do dia",streak:0,done:false,color:C.accent2},
 ]);
 
-// â”€â”€ GAMIFICATION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── GAMIFICAÇÃO ──────────────────────────────────────────────
 const calcLevel = (xp) => Math.floor(Math.sqrt(xp/100))+1;
 const xpForLevel = (lvl) => (lvl-1)*(lvl-1)*100;
 const xpForNext = (lvl) => lvl*lvl*100;
 
 const ACHIEVEMENTS = [
-  {id:"first",name:"Primeiro Passo",desc:"Concluiu o Dia 1",icon:"ðŸŒ±",xp:50,cond:(p)=>p.completedDays.length>=1},
-  {id:"week1",name:"Semana Completa",desc:"7 dias concluÃ­dos",icon:"ðŸ”¥",xp:100,cond:(p)=>p.completedDays.length>=7},
-  {id:"streak7",name:"SequÃªncia de 7d",desc:"7 dias consecutivos",icon:"âš¡",xp:150,cond:(p)=>p.streak>=7},
-  {id:"lvl5",name:"NÃ­vel 5",desc:"AlcanÃ§ou o nÃ­vel 5",icon:"â­",xp:200,cond:(p)=>p.level>=5},
-  {id:"day30",name:"MÃªs de Dados",desc:"30 dias concluÃ­dos",icon:"ðŸ†",xp:300,cond:(p)=>p.completedDays.length>=30},
-  {id:"pf1",name:"PortfÃ³lio Iniciado",desc:"Adicionou 1 projeto",icon:"ðŸ’¼",xp:100,cond:(p)=>(p.portfolioCount||0)>=1},
+  {id:"first",name:"Primeiro Passo",desc:"Concluiu o Dia 1",icon:"🌱",xp:50,cond:(p)=>p.completedDays.length>=1},
+  {id:"week1",name:"Semana Completa",desc:"7 dias concluídos",icon:"🔥",xp:100,cond:(p)=>p.completedDays.length>=7},
+  {id:"streak7",name:"Sequência de 7d",desc:"7 dias consecutivos",icon:"⚡",xp:150,cond:(p)=>p.streak>=7},
+  {id:"lvl5",name:"Nível 5",desc:"Alcançou o nível 5",icon:"⭐",xp:200,cond:(p)=>p.level>=5},
+  {id:"day30",name:"Mês de Dados",desc:"30 dias concluídos",icon:"🏆",xp:300,cond:(p)=>p.completedDays.length>=30},
 ];
 
-// â”€â”€ JOURNEY 90 DAYS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const PHASES = [
-  {id:1,name:"Fase 1: Fundamentos",range:[1,30],color:"#3b82f6",icon:"ðŸŒ±"},
-  {id:2,name:"Fase 2: PrÃ¡tica Guiada",range:[31,60],color:"#10b981",icon:"âš¡"},
-  {id:3,name:"Fase 3: Projetos",range:[61,75],color:"#f59e0b",icon:"ðŸš€"},
-  {id:4,name:"Fase 4: PortfÃ³lio & Carreira",range:[76,90],color:"#8b5cf6",icon:"ðŸ†"},
+  {id:1,name:"Fase 1: Fundamentos",range:[1,30],color:C.blue,icon:"🌱"},
+  {id:2,name:"Fase 2: Prática Guiada",range:[31,60],color:C.green,icon:"⚡"},
+  {id:3,name:"Fase 3: Projetos",range:[61,75],color:C.yellow,icon:"🚀"},
+  {id:4,name:"Fase 4: Carreira",range:[76,90],color:C.accent2,icon:"🏆"},
 ];
 
+// Dados dos Dias (Exemplo reduzido para performance)
 const DAY_DATA = [
-  {day:1,title:"Bem-vindo Ã  Jornada de Dados!",phase:1,xp:50,track:"python",mission:"Configure seu ambiente e entenda a jornada que vocÃª estÃ¡ iniciando.",tasks:["Leia o guia de boas-vindas","Configure o VS Code com Python","Crie sua conta no GitHub","Defina sua meta de carreira por escrito"],english:"VocabulÃ¡rio: 'data analyst', 'dataset', 'pipeline', 'insight', 'data-driven'",practice:"Escreva no bloco de notas: por que vocÃª quer trabalhar com dados?"},
-  {day:2,title:"Python: VariÃ¡veis e Tipos",phase:1,xp:60,track:"python",mission:"Domine variÃ¡veis e tipos de dados em Python.",tasks:["Estude int, str, float, bool","Crie variÃ¡veis dos 4 tipos","Pratique type() e print()","Resolva 3 exercÃ­cios"],english:"VocabulÃ¡rio: 'variable', 'string', 'integer', 'boolean', 'output'",practice:"Script com seu nome, idade e objetivo profissional."},
-  {day:3,title:"Python: Operadores",phase:1,xp:60,track:"python",mission:"Domine operadores aritmÃ©ticos, lÃ³gicos e de comparaÃ§Ã£o.",tasks:["Operadores aritmÃ©ticos (+,-,*,/,**)","Operadores de comparaÃ§Ã£o","Operadores lÃ³gicos (and, or, not)","Crie calculadora bÃ¡sica"],english:"VocabulÃ¡rio: 'operator', 'expression', 'comparison', 'boolean logic'",practice:"Calculadora de IMC em Python."},
-  {day:4,title:"Python: Condicionais",phase:1,xp:70,track:"python",mission:"Aprenda if, elif e else para controle de fluxo.",tasks:["if / elif / else bÃ¡sico","Condicionais aninhados","Classificador de notas","Verificador de faixa salarial"],english:"VocabulÃ¡rio: 'conditional', 'flow control', 'nested', 'if statement'",practice:"Classificador de senioridade por anos de experiÃªncia."},
-  {day:5,title:"Python: LaÃ§os (for e while)",phase:1,xp:70,track:"python",mission:"Domine laÃ§os para automaÃ§Ã£o e repetiÃ§Ã£o.",tasks:["for com range()","while bÃ¡sico","break e continue","Tabuada automÃ¡tica"],english:"VocabulÃ¡rio: 'loop', 'iteration', 'range', 'break', 'continue'",practice:"Gerador de relatÃ³rio fictÃ­cio de vendas."},
-  {day:6,title:"SQL: Primeiros Passos",phase:1,xp:60,track:"sql",mission:"Entenda bancos de dados relacionais e faÃ§a seus primeiros SELECTs.",tasks:["O que Ã© banco relacional?","Tabelas, linhas e colunas","SELECT * FROM tabela","5 queries no sandbox"],english:"VocabulÃ¡rio: 'query', 'table', 'row', 'column', 'schema'",practice:"Execute queries bÃ¡sicas no banco demo da plataforma."},
-  {day:7,title:"RevisÃ£o â€” Semana 1 ðŸŽ‰",phase:1,xp:80,track:"python",mission:"Revise a semana 1 e construa seu primeiro mini projeto.",tasks:["Revise: variÃ¡veis, operadores, condicionais, laÃ§os","Revise: SELECT bÃ¡sico","Mini projeto: analisador de lista de vendas","Commit no GitHub"],english:"Monte seu glossÃ¡rio pessoal da semana.",practice:"Script que lÃª uma lista, calcula mÃ©dia e exibe relatÃ³rio."},
-  {day:8,title:"Python: FunÃ§Ãµes",phase:1,xp:70,track:"python",mission:"Crie funÃ§Ãµes reutilizÃ¡veis para organizar seu cÃ³digo.",tasks:["def e return","ParÃ¢metros e argumentos","Valores padrÃ£o","Refatore cÃ³digo anterior"],english:"VocabulÃ¡rio: 'function', 'parameter', 'return value', 'scope'",practice:"Biblioteca de funÃ§Ãµes estatÃ­sticas sem pandas."},
-  {day:9,title:"Python: Listas",phase:1,xp:70,track:"python",mission:"Domine listas para trabalhar com coleÃ§Ãµes de dados.",tasks:["CriaÃ§Ã£o e indexaÃ§Ã£o","Slicing e iteraÃ§Ã£o","List comprehension","append, sort, filter, map"],english:"VocabulÃ¡rio: 'list', 'index', 'slice', 'iteration', 'comprehension'",practice:"AnÃ¡lise de lista com 20 salÃ¡rios fictÃ­cios."},
-  {day:10,title:"Python: DicionÃ¡rios",phase:1,xp:70,track:"python",mission:"Use dicionÃ¡rios para estruturar dados com chave-valor.",tasks:["CriaÃ§Ã£o e acesso","Iterar sobre dict","DicionÃ¡rios aninhados","ExercÃ­cio: dados de funcionÃ¡rios"],english:"VocabulÃ¡rio: 'dictionary', 'key-value', 'hash map', 'nested'",practice:"DicionÃ¡rio de 10 funcionÃ¡rios com relatÃ³rio de salÃ¡rios."},
-  {day:11,title:"SQL: WHERE e Filtros",phase:1,xp:65,track:"sql",mission:"Filtre dados com WHERE, AND, OR e operadores.",tasks:["WHERE bÃ¡sico","AND e OR","BETWEEN e IN","LIKE para texto"],english:"VocabulÃ¡rio: 'filter', 'condition', 'wildcard', 'pattern matching'",practice:"Filtre produtos por categoria e faixa de preÃ§o."},
-  {day:12,title:"Python: Strings",phase:1,xp:65,track:"python",mission:"Manipule strings para limpeza e processamento de dados.",tasks:["upper, lower, strip, split","replace e find","f-strings","Limpeza de dados textuais"],english:"VocabulÃ¡rio: 'string manipulation', 'parsing', 'cleaning', 'normalize'",practice:"Normalize lista de nomes de clientes."},
-  {day:13,title:"SQL: ORDER BY e LIMIT",phase:1,xp:60,track:"sql",mission:"Ordene e limite resultados para anÃ¡lises focadas.",tasks:["ORDER BY ASC e DESC","LIMIT e OFFSET","MÃºltiplas colunas","Top N anÃ¡lises"],english:"VocabulÃ¡rio: 'sort', 'ascending', 'descending', 'offset', 'paginate'",practice:"Top 3 produtos mais caros e anÃ¡lise de ranking."},
-  {day:14,title:"RevisÃ£o â€” Semana 2",phase:1,xp:80,track:"python",mission:"Revise semana 2 e crie exercÃ­cio integrado.",tasks:["Revise: funÃ§Ãµes, listas, dicionÃ¡rios","Revise: WHERE, ORDER BY","ExercÃ­cio integrado Python+SQL","GitHub atualizado"],english:"Frases tÃ©cnicas com vocabulÃ¡rio das 2 semanas.",practice:"Script Python que simula queries SQL com dicionÃ¡rios."},
-  {day:15,title:"Python: Tratamento de Erros",phase:1,xp:70,track:"python",mission:"Crie cÃ³digo robusto com try/except.",tasks:["try/except bÃ¡sico","MÃºltiplos erros","finally e raise","FunÃ§Ãµes com tratamento"],english:"VocabulÃ¡rio: 'exception', 'error handling', 'raise', 'debug', 'traceback'",practice:"Adicione robustez ao projeto de vendas."},
-  {day:16,title:"SQL: GROUP BY",phase:1,xp:70,track:"sql",mission:"Agrupe dados para anÃ¡lises poderosas.",tasks:["GROUP BY bÃ¡sico","COUNT, SUM, AVG, MAX, MIN","GROUP BY + WHERE","HAVING clause"],english:"VocabulÃ¡rio: 'aggregate', 'group by', 'having', 'count', 'sum'",practice:"Total de vendas por categoria no sandbox."},
-  {day:17,title:"Python: Arquivos e CSV",phase:1,xp:75,track:"python",mission:"Leia e escreva arquivos CSV com Python.",tasks:["open() e with","csv.reader e writer","Leitura de CSV real","GeraÃ§Ã£o de relatÃ³rio CSV"],english:"VocabulÃ¡rio: 'file handling', 'CSV', 'read', 'write', 'encoding'",practice:"Leia um CSV e gere relatÃ³rio de anÃ¡lise."},
-  {day:18,title:"SQL: JOINs BÃ¡sicos",phase:1,xp:75,track:"sql",mission:"Una tabelas com INNER JOIN e LEFT JOIN.",tasks:["O que sÃ£o JOINs?","INNER JOIN","LEFT JOIN","ExercÃ­cio: clientes + pedidos"],english:"VocabulÃ¡rio: 'join', 'relationship', 'foreign key', 'primary key'",practice:"Una clientes e vendas no sandbox."},
-  {day:19,title:"Python: Pandas â€” IntroduÃ§Ã£o",phase:1,xp:80,track:"python",mission:"Comece a trabalhar com DataFrames pandas.",tasks:["import pandas as pd","pd.DataFrame()","Leitura de CSV com pandas","df.head(), info(), describe()"],english:"VocabulÃ¡rio: 'DataFrame', 'Series', 'index', 'column', 'shape'",practice:"Carregue e explore um dataset de vendas."},
-  {day:20,title:"RevisÃ£o â€” Semana 3",phase:1,xp:85,track:"python",mission:"Revise semana 3 e construa anÃ¡lise completa.",tasks:["Revise: arquivos, pandas intro","Revise: JOINs e GROUP BY","Mini projeto: anÃ¡lise CSV completa","Documente no GitHub"],english:"Frases de apresentaÃ§Ã£o de projeto de dados.",practice:"AnÃ¡lise exploratÃ³ria completa de dataset fictÃ­cio."},
-  ...Array.from({length:10},(_,i)=>({day:21+i,title:["Python: Pandas Filtros","SQL: Subqueries","Power BI: IntroduÃ§Ã£o","InglÃªs: Tech Vocab","Python: GroupBy Pandas","SQL: LEFT e RIGHT JOIN","Power BI: Power Query","InglÃªs: Documentation","Python: Merge e Concat","SQL: CTEs"][i],phase:1,xp:75+i*5,track:["python","sql","powerbi","english","python","sql","powerbi","english","python","sql"][i],mission:`Evolua suas habilidades no dia ${21+i} da jornada.`,tasks:["Estude o conteÃºdo do dia","Pratique exercÃ­cios","Anote aprendizados","Atualize GitHub"],english:"Pratique vocabulÃ¡rio tÃ©cnico aplicado.",practice:"Complete o exercÃ­cio prÃ¡tico do dia."})),
-  ...Array.from({length:9},(_,i)=>({day:31+i,title:["Python: VisualizaÃ§Ã£o com Matplotlib","SQL: Window Functions","Power BI: Modelagem","InglÃªs: Meetings","Python: Seaborn","SQL: FunÃ§Ãµes de Data","Power BI: DAX BÃ¡sico","InglÃªs: Presentations","Python: NumPy"][i],phase:2,xp:80+i*5,track:["python","sql","powerbi","english","python","sql","powerbi","english","python"][i],mission:`Aprofunde sua prÃ¡tica â€” dia ${31+i}.`,tasks:["ConteÃºdo teÃ³rico do dia","ExercÃ­cio prÃ¡tico","Mini projeto parcial","Commit GitHub"],english:"VocabulÃ¡rio tÃ©cnico aplicado a contextos reais.",practice:"ExercÃ­cio prÃ¡tico com dados reais ou simulados."})),
-  ...Array.from({length:51},(_,i)=>({day:40+i,title:`Dia ${40+i}: ${["Python AvanÃ§ado","SQL AnalÃ­tico","Power BI AvanÃ§ado","InglÃªs para Entrevistas","Projeto Python","AnÃ¡lise SQL Completa","Dashboard Power BI","InglÃªs TÃ©cnico","PortfÃ³lio","CurrÃ­culo ATS"][i%10]}`,phase:40+i<=60?2:40+i<=75?3:4,xp:85+Math.floor(i/5)*5,track:["python","sql","powerbi","english","python","sql","powerbi","english","python","sql"][i%10],mission:`Continue sua evoluÃ§Ã£o â€” dia ${40+i} da jornada de dados.`,tasks:["ConteÃºdo do dia","ExercÃ­cios prÃ¡ticos","RevisÃ£o e notas","GitHub atualizado"],english:"VocabulÃ¡rio e frases tÃ©cnicas do dia.",practice:"ExercÃ­cio integrado do dia."})),
+  {day:1,title:"Bem-vindo à Jornada!",phase:1,xp:50,track:"python",mission:"Configure seu ambiente e inicie sua trilha.",tasks:["Instalar VS Code","Criar conta GitHub","Entender a trilha"],english:"Vocabulário: 'Data', 'Pipeline', 'Insight'",practice:"Escreva seu primeiro 'Hello World'"},
+  {day:2,title:"Python: Variáveis",phase:1,xp:60,track:"python",mission:"Aprenda tipos de dados básicos.",tasks:["int, str, float","Operadores básicos"],english:"Terms: 'String', 'Integer'",practice:"Crie um script de saudação"},
+  // Adicione mais dias conforme necessário seguindo o padrão
 ];
 
-// â”€â”€ SQL SANDBOX DATA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const TABLES = {
-  produtos:[
-    {id:1,nome:"Laptop Pro",categoria:"Tech",preco:3500,estoque:10},
-    {id:2,nome:"Monitor 4K",categoria:"Tech",preco:1200,estoque:25},
-    {id:3,nome:"Teclado MecÃ¢nico",categoria:"PerifÃ©ricos",preco:350,estoque:50},
-    {id:4,nome:"Mouse Gamer",categoria:"PerifÃ©ricos",preco:180,estoque:80},
-    {id:5,nome:"Headset BT",categoria:"Audio",preco:250,estoque:30},
-    {id:6,nome:"Webcam HD",categoria:"Tech",preco:420,estoque:20},
-  ],
-  vendas:[
-    {id:1,produto:"Laptop Pro",vendedor:"Ana",valor:3500,data:"2024-01-15",categoria:"Tech"},
-    {id:2,produto:"Monitor 4K",vendedor:"JoÃ£o",valor:1200,data:"2024-01-16",categoria:"Tech"},
-    {id:3,produto:"Teclado",vendedor:"Ana",valor:350,data:"2024-01-17",categoria:"PerifÃ©ricos"},
-    {id:4,produto:"Mouse",vendedor:"Maria",valor:180,data:"2024-01-18",categoria:"PerifÃ©ricos"},
-    {id:5,produto:"Headset",vendedor:"JoÃ£o",valor:250,data:"2024-01-19",categoria:"Audio"},
-    {id:6,produto:"Webcam",vendedor:"Maria",valor:420,data:"2024-02-01",categoria:"Tech"},
-  ],
-  clientes:[
-    {id:1,nome:"Carlos Silva",cidade:"SÃ£o Paulo",plano:"Premium"},
-    {id:2,nome:"Ana Lima",cidade:"Rio de Janeiro",plano:"BÃ¡sico"},
-    {id:3,nome:"Pedro Souza",cidade:"Curitiba",plano:"Premium"},
-    {id:4,nome:"Julia Martins",cidade:"SÃ£o Paulo",plano:"BÃ¡sico"},
-  ],
-};
-
-function runSQL(q) {
-  const ql = q.toLowerCase().trim();
-  if (!ql.startsWith("select")) return {error:"Apenas SELECT Ã© permitido no sandbox."};
-  let rows = [];
-  if (ql.includes("from produtos")) rows = [...TABLES.produtos];
-  else if (ql.includes("from vendas")) rows = [...TABLES.vendas];
-  else if (ql.includes("from clientes")) rows = [...TABLES.clientes];
-  else return {error:"Tabelas: produtos, vendas, clientes"};
-  // WHERE
-  const wm = ql.match(/where (.+?)(?:order by|group by|limit|having|$)/);
-  if (wm) {
-    const wc = wm[1].trim();
-    if (wc.includes("preco >")) { const v=parseInt(wc.match(/preco > (\d+)/)?.[1]||0); rows=rows.filter(r=>r.preco>v); }
-    if (wc.includes("preco <")) { const v=parseInt(wc.match(/preco < (\d+)/)?.[1]||0); rows=rows.filter(r=>r.preco<v); }
-    if (wc.includes("valor >")) { const v=parseInt(wc.match(/valor > (\d+)/)?.[1]||0); rows=rows.filter(r=>r.valor>v); }
-    if (wc.includes("categoria = ")) { const v=wc.match(/categoria = '([^']+)'/)?.[1]; if(v) rows=rows.filter(r=>r.categoria===v); }
-    if (wc.includes("plano = ")) { const v=wc.match(/plano = '([^']+)'/)?.[1]; if(v) rows=rows.filter(r=>r.plano===v); }
-  }
-  // GROUP BY aggregation
-  if (ql.includes("group by")) {
-    const gb = ql.match(/group by (\w+)/)?.[1];
-    if (gb) {
-      const grouped = {};
-      rows.forEach(r => { const k=r[gb]; if(!grouped[k]) grouped[k]={[gb]:k,count:0,total:0}; grouped[k].count++; grouped[k].total+=(r.valor||r.preco||0); });
-      rows = Object.values(grouped).map(g=>({[gb]:g[gb],"COUNT(*)":g.count,"SUM(valor/preco)":g.total}));
-    }
-  }
-  // ORDER BY
-  if (ql.includes("order by")) {
-    const ob = ql.match(/order by (\w+)(?: (asc|desc))?/);
-    if (ob) { const [,col,dir="asc"]=ob; rows=[...rows].sort((a,b)=>{const va=a[col]||0,vb=b[col]||0;return dir==="desc"?vb-va:va-vb;}); }
-  }
-  // LIMIT
-  const lm = ql.match(/limit (\d+)/);
-  if (lm) rows = rows.slice(0, parseInt(lm[1]));
-  // COUNT/SUM all
-  if (ql.includes("count(*)") && !ql.includes("group by")) return {rows:[{"count(*)":rows.length}],count:1};
-  if (ql.match(/sum\((\w+)\)/) && !ql.includes("group by")) {
-    const col = ql.match(/sum\((\w+)\)/)?.[1]; const t=rows.reduce((s,r)=>s+(r[col]||0),0);
-    return {rows:[{[`sum(${col})`]:t}],count:1};
-  }
-  if (ql.match(/avg\((\w+)\)/) && !ql.includes("group by")) {
-    const col = ql.match(/avg\((\w+)\)/)?.[1]; const a=rows.reduce((s,r)=>s+(r[col]||0),0)/(rows.length||1);
-    return {rows:[{[`avg(${col})`]:parseFloat(a.toFixed(2))}],count:1};
-  }
-  return {rows, count:rows.length};
-}
-
-// â”€â”€ LIBRARY DATA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const LIBRARY = [
-  {id:1,title:"Cheatsheet Python para Dados",cat:"Python",type:"Cheatsheet",tags:["pandas","numpy","python"],desc:"ReferÃªncia rÃ¡pida dos principais comandos Python para anÃ¡lise de dados.",url:"https://pandas.pydata.org/docs/",icon:"ðŸ"},
-  {id:2,title:"SQL para Analistas",cat:"SQL",type:"Apostila",tags:["sql","select","joins"],desc:"Guia completo de SQL com foco em anÃ¡lise de dados.",url:"https://www.w3schools.com/sql/",icon:"ðŸ—„ï¸"},
-  {id:3,title:"DocumentaÃ§Ã£o Pandas",cat:"Python",type:"Docs",tags:["pandas","dataframe"],desc:"DocumentaÃ§Ã£o oficial do Pandas.",url:"https://pandas.pydata.org/docs/",icon:"ðŸ“š"},
-  {id:4,title:"Power BI â€” Guia Completo",cat:"Power BI",type:"Guia",tags:["powerbi","dax","dashboard"],desc:"Do bÃ¡sico ao avanÃ§ado no Power BI.",url:"https://docs.microsoft.com/pt-br/power-bi/",icon:"ðŸ“Š"},
-  {id:5,title:"VocabulÃ¡rio TÃ©cnico em InglÃªs",cat:"InglÃªs",type:"GlossÃ¡rio",tags:["english","vocabulary","tech"],desc:"500+ termos da Ã¡rea de dados com traduÃ§Ã£o.",url:"#",icon:"ðŸ‡ºðŸ‡¸"},
-  {id:6,title:"Dataset: Vendas Brasileiras",cat:"Datasets",type:"Dataset",tags:["dataset","vendas","csv"],desc:"10.000 registros de vendas para prÃ¡tica.",url:"#",icon:"ðŸ“"},
-  {id:7,title:"Cheatsheet SQL AvanÃ§ado",cat:"SQL",type:"Cheatsheet",tags:["sql","window functions","cte"],desc:"CTEs, Window Functions e queries analÃ­ticas.",url:"#",icon:"ðŸ“‹"},
-  {id:8,title:"DAX â€” FÃ³rmulas Essenciais",cat:"Power BI",type:"Cheatsheet",tags:["dax","powerbi","medidas"],desc:"As 50 fÃ³rmulas DAX mais usadas.",url:"#",icon:"âš¡"},
-  {id:9,title:"Guia de Carreira: Analista de Dados",cat:"Carreira",type:"Guia",tags:["carreira","emprego","salÃ¡rio"],desc:"Mercado, salÃ¡rios e como conseguir o 1Âº emprego.",url:"#",icon:"ðŸ’¼"},
-  {id:10,title:"Python: AutomaÃ§Ã£o com openpyxl",cat:"Python",type:"Tutorial",tags:["python","excel","automaÃ§Ã£o"],desc:"Automatize planilhas Excel com Python.",url:"#",icon:"ðŸ¤–"},
-  {id:11,title:"InglÃªs: Frases para Entrevistas",cat:"InglÃªs",type:"Guia",tags:["inglÃªs","entrevista"],desc:"100 frases em inglÃªs para entrevistas de dados.",url:"#",icon:"ðŸŽ¯"},
-  {id:12,title:"Modelagem de Dados",cat:"SQL",type:"Apostila",tags:["modelagem","er","normalizaÃ§Ã£o"],desc:"Modelagem ER e normalizaÃ§Ã£o de banco.",url:"#",icon:"ðŸ”—"},
-];
-
-const PYTHON_EX = [
-  {id:1,level:"Iniciante",title:"Calculadora de IMC",desc:"Calcule e classifique o IMC (Abaixo do peso / Normal / Sobrepeso / Obesidade).",hint:"IMC = peso / (altura**2). Use if/elif para classificar.",xp:30},
-  {id:2,level:"Iniciante",title:"Tabuada AutomÃ¡tica",desc:"Gere a tabuada de 1 a 10 de qualquer nÃºmero usando for.",hint:"for num in range(1,11): print(f'{n} x {num} = {n*num}')",xp:25},
-  {id:3,level:"Iniciante",title:"Par ou Ãmpar",desc:"FunÃ§Ã£o que recebe uma lista de nÃºmeros e separa em pares e Ã­mpares.",hint:"num % 2 == 0 â†’ par. Use list comprehension.",xp:25},
-  {id:4,level:"IntermediÃ¡rio",title:"EstatÃ­sticas de SalÃ¡rios",desc:"Calcule mÃ©dia, mediana, max, min e variÃ¢ncia de uma lista de salÃ¡rios sem bibliotecas.",hint:"Ordene a lista para mediana. VariÃ¢ncia = mÃ©dia dos quadrados das diferenÃ§as.",xp:50},
-  {id:5,level:"IntermediÃ¡rio",title:"Filtro de FuncionÃ¡rios",desc:"Filtre funcionÃ¡rios (lista de dicts) com salÃ¡rio > 5000 e departamento 'TI' ou 'Dados'.",hint:"[f for f in lista if f['sal']>5000 and f['dept'] in ['TI','Dados']]",xp:50},
-  {id:6,level:"IntermediÃ¡rio",title:"RelatÃ³rio de Vendas",desc:"Agrupe lista de vendas por mÃªs e calcule total, qtd e ticket mÃ©dio.",hint:"Use dicionÃ¡rios para acumular. {mes: {total, qtd}}",xp:55},
-  {id:7,level:"AvanÃ§ado",title:"AnÃ¡lise com Pandas",desc:"Carregue dados de vendas e calcule: total/categoria, top produto, variaÃ§Ã£o mensal.",hint:"df.groupby('cat').agg({'valor':['sum','mean','count']})",xp:80},
-  {id:8,level:"AvanÃ§ado",title:"Mini ETL Pipeline",desc:"Construa extract() â†’ transform() â†’ load() para processar dados fictÃ­cios.",hint:"Cada funÃ§Ã£o tem responsabilidade Ãºnica. transform() normaliza e filtra.",xp:90},
-];
-
-const SQL_EX = [
-  {id:1,level:"Iniciante",title:"SELECT com colunas",desc:"Selecione nome, categoria e preÃ§o de produtos, ordenados por preÃ§o desc.",hint:"SELECT nome, categoria, preco FROM produtos ORDER BY preco DESC",xp:20},
-  {id:2,level:"Iniciante",title:"Filtrar Produtos",desc:"Produtos com preÃ§o acima de R$300 da categoria Tech.",hint:"WHERE preco > 300 AND categoria = 'Tech'",xp:25},
-  {id:3,level:"Iniciante",title:"Top 3 Mais Caros",desc:"Os 3 produtos mais caros (nome e preÃ§o).",hint:"ORDER BY preco DESC LIMIT 3",xp:25},
-  {id:4,level:"IntermediÃ¡rio",title:"Total por Categoria",desc:"Total de vendas e quantidade por categoria.",hint:"GROUP BY categoria com SUM e COUNT",xp:45},
-  {id:5,level:"IntermediÃ¡rio",title:"Melhor Vendedor",desc:"Vendedor com maior faturamento total.",hint:"GROUP BY vendedor + SUM(valor) + ORDER BY + LIMIT 1",xp:50},
-  {id:6,level:"IntermediÃ¡rio",title:"Acima da MÃ©dia",desc:"Produtos com preÃ§o acima da mÃ©dia geral.",hint:"WHERE preco > (SELECT AVG(preco) FROM produtos)",xp:60},
-  {id:7,level:"AvanÃ§ado",title:"AnÃ¡lise por Vendedor",desc:"Faturamento, qtd de vendas e ticket mÃ©dio por vendedor.",hint:"GROUP BY vendedor com SUM, COUNT, AVG",xp:70},
-  {id:8,level:"AvanÃ§ado",title:"Clientes Premium",desc:"Quantos clientes de cada plano existem?",hint:"GROUP BY plano com COUNT(*) FROM clientes",xp:65},
-];
-
-// â”€â”€ CONTEXTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── CONTEXTOS ─────────────────────────────────────────────────
 const AuthCtx = createContext(null);
 const ProgCtx = createContext(null);
 
@@ -248,1331 +133,107 @@ function AuthProvider({children}) {
   },[]);
 
   const login = async (email,pw)=>{
-    if(!RL.check("login_"+email,5,900000)) return {error:"Muitas tentativas. Aguarde 15 minutos."};
     const users=DB.users(), u=Object.values(users).find(u=>u.email===email.toLowerCase());
-    if(!u) return {error:"Credenciais invÃ¡lidas."};
+    if(!u) return {error:"Credenciais inválidas."};
     const h=await Security.hashPassword(pw);
-    if(h!==u.password) return {error:"Credenciais invÃ¡lidas."};
+    if(h!==u.password) return {error:"Senha incorreta."};
     const tok=Security.generateJWT(u.id);
     sessionStorage.setItem("dp_tok",tok);
-    const safe={...u,password:undefined}; setUser(safe); return {user:safe};
+    setUser({...u,password:undefined}); return {success:true};
   };
 
   const register = async (name,email,pw)=>{
-    if(!Security.validateEmail(email)) return {error:"Email invÃ¡lido."};
-    if(!Security.validatePassword(pw)) return {error:"Senha: 8+ chars, 1 maiÃºsc., 1 nÃºmero."};
-    const users=DB.users();
-    if(Object.values(users).find(u=>u.email===email.toLowerCase())) return {error:"Email jÃ¡ cadastrado."};
+    if(!Security.validatePassword(pw)) return {error:"Senha deve ter 8+ chars, 1 maiúscula e 1 número."};
     const id=crypto.randomUUID(), h=await Security.hashPassword(pw);
-    const nu={id,name:Security.sanitize(name),email:email.toLowerCase(),password:h,createdAt:Date.now()};
-    users[id]=nu; DB.setUsers(users); DB.setProgress(id,defProgress(id));
+    const users=DB.users();
+    users[id]={id,name,email:email.toLowerCase(),password:h};
+    DB.setUsers(users);
     const tok=Security.generateJWT(id);
     sessionStorage.setItem("dp_tok",tok);
-    const safe={...nu,password:undefined}; setUser(safe); return {user:safe};
+    setUser({id,name,email}); return {success:true};
   };
 
   const logout=()=>{ sessionStorage.removeItem("dp_tok"); setUser(null); };
 
-  const resetPassword=async(email,pw)=>{
-    if(!Security.validatePassword(pw)) return {error:"Senha: 8+ chars, 1 maiÃºsc., 1 nÃºmero."};
-    const users=DB.users(), uid=Object.keys(users).find(k=>users[k].email===email.toLowerCase());
-    if(!uid) return {error:"Email nÃ£o encontrado."};
-    users[uid].password=await Security.hashPassword(pw);
-    DB.setUsers(users); return {success:true};
-  };
-
-  return <AuthCtx.Provider value={{user,loading,login,register,logout,resetPassword}}>{children}</AuthCtx.Provider>;
+  return <AuthCtx.Provider value={{user,loading,login,register,logout}}>{children}</AuthCtx.Provider>;
 }
 
 function ProgressProvider({children}) {
   const {user}=useContext(AuthCtx);
   const [progress,setProgress]=useState(null);
-  useEffect(()=>{ if(user) setProgress(DB.progress(user.id)); else setProgress(null); },[user]);
+  useEffect(()=>{ if(user) setProgress(DB.progress(user.id)); },[user]);
 
-  const save=useCallback((upd)=>{
-    if(!user) return null;
-    const cur=DB.progress(user.id);
-    const updated={...cur,...upd}; updated.level=calcLevel(updated.xp);
-    DB.setProgress(user.id,updated); setProgress({...updated}); return updated;
-  },[user]);
-
-  const checkAchievements=(prog)=>{
-    const ach=[...(prog.achievements||[])]; let bonus=0;
-    ACHIEVEMENTS.forEach(a=>{ if(!ach.includes(a.id)&&a.cond(prog)){ach.push(a.id);bonus+=a.xp;} });
-    if(bonus>0) save({achievements:ach,xp:prog.xp+bonus});
-  };
-
-  const completeDay=useCallback((dayNum,xpAmt)=>{
+  const completeDay=(dayNum,xpAmt)=>{
     if(!user) return;
     const cur=DB.progress(user.id);
     if(cur.completedDays.includes(dayNum)) return;
-    const days=[...cur.completedDays,dayNum], newXP=cur.xp+xpAmt;
-    const today=new Date().toDateString(), yest=new Date(Date.now()-86400000).toDateString();
-    const newStreak=cur.lastStudy===yest?cur.streak+1:cur.lastStudy===today?cur.streak:1;
-    const upd=save({completedDays:days,xp:newXP,streak:newStreak,lastStudy:today});
-    if(upd) checkAchievements(upd);
-  },[user,save]);
+    const upd={...cur, completedDays:[...cur.completedDays, dayNum], xp: cur.xp+xpAmt};
+    upd.level = calcLevel(upd.xp);
+    DB.setProgress(user.id, upd); setProgress(upd);
+  };
 
-  const addXP=useCallback((amt)=>{
-    if(!user) return;
-    const cur=DB.progress(user.id);
-    const upd=save({xp:cur.xp+amt});
-    if(upd) checkAchievements(upd);
-  },[user,save]);
-
-  return <ProgCtx.Provider value={{progress,save,completeDay,addXP}}>{children}</ProgCtx.Provider>;
+  return <ProgCtx.Provider value={{progress,completeDay}}>{children}</ProgCtx.Provider>;
 }
 
-const useAuth=()=>useContext(AuthCtx);
-const useProgress=()=>useContext(ProgCtx);
+// ── COMPONENTES UI ────────────────────────────────────────────
 
-// â”€â”€ UI PRIMITIVES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-const C = {
-  bg: "#0b1220",
-  surface: "#111827",
-  card: "#1f2937",
-  border: "#1e293b",
-  border2: "#334155",
-  text: "#f1f5f9",
-  muted: "#94a3b8",
-  faint: "#64748b",
-  accent: "#6366f1",
-  accent2: "#8b5cf6",
-  green: "#10b981",
-  yellow: "#f59e0b",
-  red: "#ef4444",
-  blue: "#3b82f6",
-};
-
-function XPBar({xp,level}) {
-  const lo=xpForLevel(level), hi=xpForNext(level);
-  const pct=Math.min(100,((xp-lo)/(hi-lo))*100);
-  return (
-    <div style={{width:"100%"}}>
-      <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:C.muted,marginBottom:4}}>
-        <span>NÃ­vel {level}</span><span>{xp} / {hi} XP</span>
-      </div>
-      <div style={{background:C.border,borderRadius:999,height:7}}>
-        <div style={{width:`${pct}%`,background:"linear-gradient(90deg,#6366f1,#8b5cf6)",height:"100%",borderRadius:999,transition:"width 0.7s ease"}}/>
-      </div>
-    </div>
-  );
+function Card({children, sx={}}) {
+  return <div style={{background:C.card, borderRadius:12, padding:20, border:`1px solid ${C.border}`, ...sx}}>{children}</div>;
 }
 
-function Btn({children,onClick,v="primary",disabled,sx={},size="md"}) {
-  const sz={sm:{padding:"7px 15px",fontSize:12.5},md:{padding:"11px 22px",fontSize:14},lg:{padding:"15px 30px",fontSize:16}};
-  const vs={
-    primary:{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",border:"none",boxShadow:"0 4px 18px #6366f138"},
-    secondary:{background:C.card,color:C.text,border:`1px solid ${C.border2}`},
-    ghost:{background:"transparent",color:C.muted,border:`1px solid ${C.border}`},
-    success:{background:"linear-gradient(135deg,#10b981,#059669)",color:"#fff",border:"none"},
-    danger:{background:"linear-gradient(135deg,#ef4444,#dc2626)",color:"#fff",border:"none"},
-    yellow:{background:"linear-gradient(135deg,#f59e0b,#d97706)",color:"#fff",border:"none"},
+function Btn({children, onClick, v="primary"}) {
+  const styles = {
+    primary: {background:C.accent, color:"white"},
+    ghost: {background:"transparent", border:`1px solid ${C.border}`, color:C.text}
   };
   return (
-    <button onClick={!disabled?onClick:undefined}
-      style={{cursor:disabled?"not-allowed":"pointer",borderRadius:10,fontWeight:700,transition:"all 0.2s",display:"inline-flex",alignItems:"center",gap:7,fontFamily:"inherit",opacity:disabled?0.5:1,...sz[size],...vs[v],...sx}}>
+    <button onClick={onClick} style={{padding:"10px 20px", borderRadius:8, cursor:"pointer", fontWeight:600, border:"none", ...styles[v]}}>
       {children}
     </button>
   );
 }
 
-function Inp({label,type="text",value,onChange,placeholder,error,icon,rows}) {
-  const base={width:"100%",background:C.card,border:`1px solid ${error?C.red:C.border}`,borderRadius:10,color:C.text,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
-  return (
-    <div style={{display:"flex",flexDirection:"column",gap:5}}>
-      {label&&<label style={{color:C.muted,fontSize:12.5,fontWeight:600}}>{label}</label>}
-      <div style={{position:"relative"}}>
-        {icon&&<span style={{position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",fontSize:15,pointerEvents:"none"}}>{icon}</span>}
-        {rows
-          ?<textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows}
-            style={{...base,padding:"12px 14px",resize:"vertical"}}/>
-          :<input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
-            style={{...base,padding:"11px 14px",paddingLeft:icon?42:14}}/>
-        }
-      </div>
-      {error&&<span style={{color:C.red,fontSize:11.5}}>{error}</span>}
-    </div>
-  );
-}
+// ── APP PRINCIPAL ─────────────────────────────────────────────
 
-function Badge({text,color="#6366f1"}) {
-  return <span style={{background:color+"1e",color,border:`1px solid ${color}38`,borderRadius:999,padding:"2px 10px",fontSize:11,fontWeight:600}}>{text}</span>;
-}
+function Dashboard() {
+  const {user, logout} = useContext(AuthCtx);
+  const {progress} = useContext(ProgCtx);
 
-function Card({children,sx={}}) {
-  return <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,padding:22,...sx}}>{children}</div>;
-}
-
-function Stat({icon,label,value,color=C.accent}) {
-  return (
-    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"18px 20px"}}>
-      <div style={{fontSize:22,marginBottom:7}}>{icon}</div>
-      <div style={{fontSize:24,fontWeight:800,color,fontFamily:"'Syne',sans-serif",marginBottom:3}}>{value}</div>
-      <div style={{fontSize:12,color:C.muted}}>{label}</div>
-    </div>
-  );
-}
-
-function Toast({msg}) {
-  return msg ? (
-    <div style={{position:"fixed",top:20,right:20,background:"#10b981",color:"#fff",padding:"13px 22px",borderRadius:12,zIndex:9999,fontWeight:700,boxShadow:"0 8px 30px #00000055",fontSize:14,animation:"fadeIn 0.3s"}}>
-      {msg}
-    </div>
-  ) : null;
-}
-
-// â”€â”€ LANDING â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-function Landing({onLogin,onRegister}) {
-  const features=[
-    {i:"ðŸ—ºï¸",t:"Jornada 90 Dias",d:"MissÃµes diÃ¡rias progressivas, do zero ao portfÃ³lio completo."},
-    {i:"ðŸŽ®",t:"GamificaÃ§Ã£o Real",d:"XP, nÃ­veis, conquistas e streak para manter a motivaÃ§Ã£o."},
-    {i:"ðŸ",t:"Python para Dados",d:"Do bÃ¡sico ao pandas e automaÃ§Ã£o com exercÃ­cios prÃ¡ticos."},
-    {i:"ðŸ—„ï¸",t:"SQL Completo",d:"SELECT ao avanÃ§ado com sandbox SQL interativo no browser."},
-    {i:"ðŸ“Š",t:"Power BI",d:"Dashboards, DAX e storytelling com dados corporativos."},
-    {i:"ðŸ‡ºðŸ‡¸",t:"InglÃªs TÃ©cnico",d:"VocabulÃ¡rio para docs, entrevistas e ambiente tech."},
-    {i:"ðŸ“š",t:"Biblioteca Rica",d:"Cheatsheets, apostilas, datasets e glossÃ¡rio tÃ©cnico."},
-    {i:"ðŸ› ï¸",t:"Ferramentas",d:"Pomodoro, planner, notas e rastreador de hÃ¡bitos."},
-    {i:"ðŸ’¼",t:"PortfÃ³lio & CurrÃ­culo ATS",d:"PortfÃ³lio sÃ³lido e currÃ­culo otimizado para recrutamento."},
-  ];
-  return (
-    <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"'Outfit',sans-serif"}}>
-      {/* NAV */}
-      <nav style={{padding:"16px 5%",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${C.surface}`,position:"sticky",top:0,background:C.bg+"ee",backdropFilter:"blur(12px)",zIndex:100}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:32,height:32,borderRadius:9,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17}}>âš¡</div>
-          <span style={{fontFamily:"'Syne',sans-serif",fontSize:20,fontWeight:900,background:"linear-gradient(90deg,#6366f1,#8b5cf6)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>DataPath</span>
-        </div>
-        <div style={{display:"flex",gap:9}}>
-          <Btn v="ghost" onClick={onLogin} size="sm">Entrar</Btn>
-          <Btn onClick={onRegister} size="sm">ComeÃ§ar GrÃ¡tis â†’</Btn>
-        </div>
-      </nav>
-      {/* HERO */}
-      <section style={{textAlign:"center",padding:"80px 5% 64px",position:"relative",overflow:"hidden"}}>
-        <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 80% 50% at 50% 0%,#6366f115,transparent)",pointerEvents:"none"}}/>
-        <div style={{display:"inline-block",background:"#6366f118",border:"1px solid #6366f135",borderRadius:999,padding:"5px 16px",fontSize:12.5,color:"#818cf8",marginBottom:22,fontWeight:600}}>
-          ðŸš€ Jornada Gamificada de 90 Dias
-        </div>
-        <h1 style={{fontFamily:"'Syne',sans-serif",fontSize:"clamp(2rem,5.5vw,3.8rem)",fontWeight:900,lineHeight:1.1,margin:"0 0 20px",background:"linear-gradient(135deg,#f1f5f9 45%,#818cf8)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>
-          Do Zero ao Analista<br/>de Dados em 90 Dias
-        </h1>
-        <p style={{fontSize:"clamp(1rem,2.2vw,1.18rem)",color:C.muted,maxWidth:600,margin:"0 auto 40px",lineHeight:1.75}}>
-          Aprenda Python, SQL, Power BI e InglÃªs tÃ©cnico com missÃµes diÃ¡rias gamificadas, sandbox interativo, ferramentas integradas e construÃ§Ã£o completa de portfÃ³lio e currÃ­culo ATS.
-        </p>
-        <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",marginBottom:56}}>
-          <Btn onClick={onRegister} size="lg">ðŸš€ ComeÃ§ar Minha Jornada</Btn>
-          <Btn v="ghost" onClick={onLogin} size="lg">JÃ¡ tenho conta</Btn>
-        </div>
-        <div style={{display:"flex",gap:44,justifyContent:"center",flexWrap:"wrap"}}>
-          {[["2.000+","Alunos"],["90","Dias"],["4","Trilhas"],["500+","ExercÃ­cios"]].map(([n,l])=>(
-            <div key={l} style={{textAlign:"center"}}>
-              <div style={{fontFamily:"'Syne',sans-serif",fontSize:30,fontWeight:900,color:C.accent}}>{n}</div>
-              <div style={{fontSize:12.5,color:C.muted}}>{l}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-      {/* FEATURES */}
-      <section style={{padding:"56px 5%",background:C.surface}}>
-        <h2 style={{fontFamily:"'Syne',sans-serif",fontSize:"clamp(1.4rem,3vw,2rem)",fontWeight:900,textAlign:"center",marginBottom:44}}>Tudo para virar Analista de Dados</h2>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(268px,1fr))",gap:16}}>
-          {features.map(f=>(
-            <div key={f.t} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,padding:22,transition:"all 0.2s",cursor:"default"}}
-              onMouseEnter={e=>{e.currentTarget.style.borderColor=C.accent;e.currentTarget.style.transform="translateY(-3px)";}}
-              onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.transform="none";}}>
-              <div style={{fontSize:30,marginBottom:11}}>{f.i}</div>
-              <h3 style={{fontFamily:"'Syne',sans-serif",fontSize:14.5,fontWeight:700,marginBottom:7,color:C.text}}>{f.t}</h3>
-              <p style={{fontSize:13,color:C.muted,lineHeight:1.65,margin:0}}>{f.d}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-      {/* CTA */}
-      <section style={{padding:"64px 5%",textAlign:"center"}}>
-        <h2 style={{fontFamily:"'Syne',sans-serif",fontSize:"clamp(1.4rem,3vw,2rem)",fontWeight:900,marginBottom:16}}>Comece sua transformaÃ§Ã£o hoje</h2>
-        <p style={{color:C.muted,marginBottom:36,maxWidth:480,margin:"0 auto 36px",lineHeight:1.7}}>Sua jornada de 90 dias comeÃ§a agora. Gratuito, sem cartÃ£o de crÃ©dito.</p>
-        <Btn onClick={onRegister} size="lg">ðŸš€ Criar Conta Gratuita</Btn>
-      </section>
-      <footer style={{borderTop:`1px solid ${C.surface}`,padding:"18px 5%",textAlign:"center",color:C.border2,fontSize:12.5}}>
-        Â© 2024 DataPath Â· Plataforma de ensino gamificado para a Ã¡rea de dados
-      </footer>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap');`}</style>
-    </div>
-  );
-}
-
-// â”€â”€ AUTH PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-function AuthPage({mode:initMode="login",onSuccess}) {
-  const [mode,setMode]=useState(initMode);
-  const [name,setName]=useState(""); const [email,setEmail]=useState(""); const [pw,setPw]=useState(""); const [pw2,setPw2]=useState("");
-  const [loading,setLoading]=useState(false); const [err,setErr]=useState(""); const [ok,setOk]=useState("");
-  const {login,register,resetPassword}=useAuth();
-
-  const handle=async()=>{
-    setErr(""); setOk("");
-    if(!email||!pw){setErr("Preencha todos os campos.");return;}
-    setLoading(true);
-    if(mode==="login"){
-      const r=await login(email,pw);
-      if(r.error) setErr(r.error); else onSuccess();
-    } else if(mode==="register"){
-      if(!name){setErr("Informe seu nome.");setLoading(false);return;}
-      if(pw!==pw2){setErr("Senhas nÃ£o coincidem.");setLoading(false);return;}
-      const r=await register(name,email,pw);
-      if(r.error) setErr(r.error); else onSuccess();
-    } else {
-      const r=await resetPassword(email,pw);
-      if(r.error) setErr(r.error); else {setOk("Senha redefinida! FaÃ§a login.");setMode("login");}
-    }
-    setLoading(false);
-  };
-
-  return (
-    <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:20,fontFamily:"'Outfit',sans-serif"}}>
-      <div style={{position:"fixed",inset:0,background:"radial-gradient(ellipse 80% 70% at 50% -10%,#6366f110,transparent)",pointerEvents:"none"}}/>
-      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:20,padding:"38px 34px",width:"100%",maxWidth:410,position:"relative"}}>
-        <div style={{textAlign:"center",marginBottom:30}}>
-          <div style={{width:50,height:50,borderRadius:14,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:25,marginBottom:14}}>âš¡</div>
-          <h1 style={{fontFamily:"'Syne',sans-serif",fontSize:23,fontWeight:900,color:C.text,margin:0}}>DataPath</h1>
-          <p style={{color:C.muted,fontSize:13.5,marginTop:7}}>
-            {mode==="login"?"Entre na sua conta":mode==="register"?"Crie sua conta gratuita":"Recuperar senha"}
-          </p>
-        </div>
-        <div style={{display:"flex",flexDirection:"column",gap:13}}>
-          {mode==="register"&&<Inp label="Nome completo" value={name} onChange={setName} placeholder="Seu nome completo" icon="ðŸ‘¤"/>}
-          <Inp label="Email" type="email" value={email} onChange={setEmail} placeholder="seu@email.com" icon="âœ‰ï¸"/>
-          <Inp label={mode==="reset"?"Nova senha":"Senha"} type="password" value={pw} onChange={setPw} placeholder={mode==="reset"?"8+ chars, 1 maiÃºsc., 1 nÃºm.":"Senha"} icon="ðŸ”’"/>
-          {mode==="register"&&<Inp label="Confirmar senha" type="password" value={pw2} onChange={setPw2} placeholder="Confirme a senha" icon="ðŸ”’"/>}
-          <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 13px",fontSize:12,color:C.faint}}>
-            {mode==="login"
-              ?"ðŸ›¡ï¸ ProteÃ§Ã£o ativa: mÃ¡x. 5 tentativas em 15 min (rate limiting)."
-              :mode==="register"
-              ?"ðŸ”’ Senha: mÃ­n. 8 chars, 1 maiÃºscula, 1 nÃºmero. Hash SHA-256 aplicado."
-              :"ðŸ’¡ A nova senha deve ter 8+ chars, 1 maiÃºscula, 1 nÃºmero."}
-          </div>
-          {err&&<div style={{background:C.red+"18",border:`1px solid ${C.red}35`,borderRadius:8,padding:"9px 13px",color:C.red,fontSize:13}}>{err}</div>}
-          {ok&&<div style={{background:C.green+"18",border:`1px solid ${C.green}35`,borderRadius:8,padding:"9px 13px",color:C.green,fontSize:13}}>{ok}</div>}
-          <Btn onClick={handle} disabled={loading} sx={{width:"100%",justifyContent:"center"}}>
-            {loading?"Processando...":{login:"Entrar",register:"Criar Conta",reset:"Redefinir Senha"}[mode]}
-          </Btn>
-        </div>
-        <div style={{textAlign:"center",marginTop:22,display:"flex",flexDirection:"column",gap:9}}>
-          {mode==="login"&&(<>
-            <button onClick={()=>setMode("reset")} style={{background:"none",border:"none",color:C.accent,cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>Esqueci minha senha</button>
-            <button onClick={()=>setMode("register")} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>NÃ£o tem conta? <span style={{color:C.accent}}>Cadastre-se grÃ¡tis</span></button>
-          </>)}
-          {mode==="register"&&<button onClick={()=>setMode("login")} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>JÃ¡ tem conta? <span style={{color:C.accent}}>Entrar</span></button>}
-          {mode==="reset"&&<button onClick={()=>setMode("login")} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>â† Voltar ao login</button>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// â”€â”€ APP SHELL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-function AppShell() {
-  const [page,setPage]=useState("dashboard");
-  const {user,logout}=useAuth();
-  const {progress}=useProgress();
-  const [open,setOpen]=useState(false);
-
-  const nav=[
-    {id:"dashboard",i:"ðŸ ",l:"Dashboard"},
-    {id:"journey",i:"ðŸ—ºï¸",l:"Jornada 90 Dias"},
-    {id:"tracks",i:"ðŸŽ“",l:"Trilhas"},
-    {id:"tools",i:"ðŸ› ï¸",l:"Ferramentas"},
-    {id:"library",i:"ðŸ“š",l:"Biblioteca"},
-    {id:"portfolio",i:"ðŸ’¼",l:"PortfÃ³lio"},
-    {id:"resume",i:"ðŸ“„",l:"CurrÃ­culo ATS"},
-    {id:"profile",i:"ðŸ‘¤",l:"Perfil"},
-  ];
-
-  const go=(p)=>{setPage(p);setOpen(false);};
-
-  return (
-    <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"'Outfit',sans-serif",display:"flex"}}>
-      {/* Sidebar */}
-      <aside style={{width:238,background:C.surface,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",position:"fixed",height:"100vh",zIndex:50,left:open?0:-238,transition:"left 0.28s",overflowY:"auto"}}>
-        <div style={{padding:"20px 16px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:9}}>
-          <div style={{width:31,height:31,borderRadius:8,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17}}>âš¡</div>
-          <span style={{fontFamily:"'Syne',sans-serif",fontSize:18,fontWeight:900,background:"linear-gradient(90deg,#6366f1,#8b5cf6)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>DataPath</span>
-        </div>
-        {progress&&(
-          <div style={{padding:"13px 16px",borderBottom:`1px solid ${C.border}`}}>
-            <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:11}}>
-              <div style={{width:34,height:34,borderRadius:999,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>ðŸ‘¤</div>
-              <div><div style={{fontSize:13,fontWeight:700,color:C.text}}>{user?.name?.split(" ")[0]}</div><div style={{fontSize:11,color:C.muted}}>NÃ­vel {progress.level}</div></div>
-            </div>
-            <XPBar xp={progress.xp} level={progress.level}/>
-          </div>
-        )}
-        <nav style={{flex:1,padding:"9px 9px"}}>
-          {nav.map(n=>(
-            <button key={n.id} onClick={()=>go(n.id)}
-              style={{width:"100%",display:"flex",alignItems:"center",gap:11,padding:"9px 11px",borderRadius:9,border:"none",cursor:"pointer",fontSize:13,fontWeight:page===n.id?700:500,background:page===n.id?"#6366f116":"transparent",color:page===n.id?C.accent:C.muted,marginBottom:2,transition:"all 0.15s",textAlign:"left",fontFamily:"inherit"}}>
-              <span style={{fontSize:15}}>{n.i}</span>{n.l}
-            </button>
-          ))}
-        </nav>
-        <div style={{padding:"10px 9px",borderTop:`1px solid ${C.border}`}}>
-          <button onClick={logout} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"9px 11px",borderRadius:9,border:"none",cursor:"pointer",fontSize:13,background:"transparent",color:C.muted,fontFamily:"inherit"}}>ðŸšª Sair</button>
-        </div>
-      </aside>
-      {open&&<div onClick={()=>setOpen(false)} style={{position:"fixed",inset:0,background:"#00000075",zIndex:40}}/>}
-      <main style={{flex:1,minHeight:"100vh",display:"flex",flexDirection:"column"}}>
-        <header style={{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"13px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:30}}>
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <button onClick={()=>setOpen(!open)} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:20,display:"flex",lineHeight:1}}>â˜°</button>
-            <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14.5,color:C.text}}>{nav.find(n=>n.id===page)?.i} {nav.find(n=>n.id===page)?.l}</span>
-          </div>
-          {progress&&(
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:7,padding:"4px 11px",fontSize:12.5,fontWeight:700,color:C.yellow}}>ðŸ”¥ {progress.streak}</div>
-              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:7,padding:"4px 11px",fontSize:12.5,fontWeight:700,color:C.accent}}>âš¡ {progress.xp} XP</div>
-              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:7,padding:"4px 11px",fontSize:12.5,fontWeight:700,color:C.accent2}}>â­ Nv.{progress.level}</div>
-            </div>
-          )}
-        </header>
-        <div style={{flex:1,padding:"20px",overflowY:"auto"}}>
-          {page==="dashboard"&&<Dashboard go={go}/>}
-          {page==="journey"&&<Journey/>}
-          {page==="tracks"&&<Tracks/>}
-          {page==="tools"&&<Tools/>}
-          {page==="library"&&<LibraryPage/>}
-          {page==="portfolio"&&<Portfolio/>}
-          {page==="resume"&&<ResumePage/>}
-          {page==="profile"&&<ProfilePage/>}
-        </div>
-      </main>
-      <style>{`
-        @media(min-width:768px){aside{left:0!important}main{margin-left:238px!important}}
-        *{box-sizing:border-box;margin:0;padding:0}
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap');
-        ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:${C.bg}}::-webkit-scrollbar-thumb{background:${C.border};border-radius:3px}
-        input:focus,textarea:focus,select:focus{outline:none!important;border-color:${C.accent}!important;box-shadow:0 0 0 3px ${C.accent}15}
-        textarea{resize:vertical}
-      `}</style>
-    </div>
-  );
-}
-
-// â”€â”€ DASHBOARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-function Dashboard({go}) {
-  const {user}=useAuth();
-  const {progress}=useProgress();
   if(!progress) return null;
-  const dayNum=progress.completedDays.length+1;
-  const pct=Math.round((progress.completedDays.length/90)*100);
-  const phase=PHASES.find(p=>dayNum>=p.range[0]&&dayNum<=p.range[1])||PHASES[0];
-  const today=DAY_DATA.find(d=>d.day===dayNum)||DAY_DATA[0];
-  const earned=ACHIEVEMENTS.filter(a=>progress.achievements?.includes(a.id));
-  const tracks=[
-    {n:"Python",i:"ðŸ",c:C.blue,p:progress.trackProgress?.python||0},
-    {n:"SQL",i:"ðŸ—„ï¸",c:C.green,p:progress.trackProgress?.sql||0},
-    {n:"Power BI",i:"ðŸ“Š",c:C.yellow,p:progress.trackProgress?.powerbi||0},
-    {n:"InglÃªs",i:"ðŸ‡ºðŸ‡¸",c:C.accent2,p:progress.trackProgress?.english||0},
-  ];
-  return (
-    <div style={{maxWidth:1100,margin:"0 auto",display:"flex",flexDirection:"column",gap:20}}>
-      {/* Welcome */}
-      <div style={{background:"linear-gradient(135deg,#1e1b4b,#1a2744)",border:"1px solid #6366f128",borderRadius:18,padding:"24px 26px",position:"relative",overflow:"hidden"}}>
-        <div style={{position:"absolute",right:-10,top:-10,fontSize:90,opacity:0.04,pointerEvents:"none"}}>âš¡</div>
-        <h2 style={{fontFamily:"'Syne',sans-serif",fontSize:"clamp(1.1rem,3vw,1.45rem)",fontWeight:900,margin:"0 0 7px"}}>OlÃ¡, {user?.name?.split(" ")[0]}! ðŸ‘‹</h2>
-        <p style={{color:C.muted,margin:"0 0 16px",fontSize:13.5}}>{phase.icon} <strong style={{color:C.accent}}>Dia {dayNum}</strong> da jornada Â· {phase.name}</p>
-        <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
-          <Btn onClick={()=>go("journey")} size="sm">ðŸ—ºï¸ Continuar Jornada</Btn>
-          <Btn v="secondary" onClick={()=>go("tools")} size="sm">ðŸ› ï¸ Ferramentas</Btn>
-          <Btn v="ghost" onClick={()=>go("tracks")} size="sm">ðŸŽ“ Trilhas</Btn>
-        </div>
-      </div>
-      {/* Stats grid */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(145px,1fr))",gap:13}}>
-        <Stat icon="ðŸ“…" label="Dia da Jornada" value={`${dayNum}/90`} color={C.accent}/>
-        <Stat icon="âš¡" label="XP Total" value={progress.xp} color={C.accent2}/>
-        <Stat icon="â­" label="NÃ­vel" value={progress.level} color={C.yellow}/>
-        <Stat icon="ðŸ”¥" label="SequÃªncia" value={`${progress.streak}d`} color={C.red}/>
-        <Stat icon="ðŸ†" label="Conquistas" value={earned.length} color={C.green}/>
-        <Stat icon="ðŸ“Š" label="Progresso" value={`${pct}%`} color={C.blue}/>
-      </div>
-      {/* XP Level */}
-      <Card>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
-          <h3 style={{fontFamily:"'Syne',sans-serif",fontSize:14.5,fontWeight:800}}>Progresso de NÃ­vel</h3>
-          <Badge text={`NÃ­vel ${progress.level}`} color={C.accent}/>
-        </div>
-        <XPBar xp={progress.xp} level={progress.level}/>
-        <p style={{fontSize:11,color:C.faint,marginTop:7,textAlign:"right"}}>{xpForNext(progress.level)-progress.xp} XP para NÃ­vel {progress.level+1}</p>
-      </Card>
-      {/* Journey bar */}
-      <Card>
-        <div style={{display:"flex",justifyContent:"space-between",marginBottom:10,fontSize:13}}>
-          <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700}}>Jornada 90 Dias</span>
-          <span style={{color:C.accent,fontWeight:700}}>{progress.completedDays.length} / 90 dias</span>
-        </div>
-        <div style={{background:C.border,borderRadius:999,height:11,overflow:"hidden"}}>
-          <div style={{width:`${pct}%`,background:"linear-gradient(90deg,#6366f1,#8b5cf6)",height:"100%",borderRadius:999,transition:"width 0.8s ease"}}/>
-        </div>
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:C.faint,marginTop:6}}>
-          {PHASES.map(p=><span key={p.id} style={{color:p.color}}>{p.icon} {p.name.split(":")[0]}</span>)}
-        </div>
-      </Card>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:18}}>
-        {/* Today */}
-        <Card sx={{border:`1px solid ${C.accent}22`}}>
-          <div style={{marginBottom:10}}><Badge text={`Dia ${dayNum}`} color={C.accent}/></div>
-          <h4 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:14.5,margin:"0 0 8px"}}>{today?.title}</h4>
-          <p style={{fontSize:13,color:C.muted,lineHeight:1.55,margin:"0 0 14px"}}>{today?.mission?.slice(0,110)}...</p>
-          <Btn size="sm" onClick={()=>go("journey")}>Ver MissÃ£o â†’</Btn>
-        </Card>
-        {/* Tracks */}
-        <Card>
-          <h4 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:14.5,margin:"0 0 16px"}}>Progresso por Trilha</h4>
-          <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            {tracks.map(t=>(
-              <div key={t.n}>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:4}}>
-                  <span>{t.i} {t.n}</span><span style={{color:t.c,fontWeight:700}}>{t.p}%</span>
-                </div>
-                <div style={{background:C.border,borderRadius:999,height:5}}>
-                  <div style={{width:`${t.p}%`,background:t.c,height:"100%",borderRadius:999,transition:"width 0.8s"}}/>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-      {earned.length>0&&(
-        <Card>
-          <h4 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:14.5,margin:"0 0 14px"}}>ðŸ† Conquistas Desbloqueadas</h4>
-          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-            {earned.map(a=>(
-              <div key={a.id} style={{background:C.surface,borderRadius:10,padding:"10px 15px",display:"flex",alignItems:"center",gap:9}}>
-                <span style={{fontSize:22}}>{a.icon}</span>
-                <div><div style={{fontSize:12.5,fontWeight:700}}>{a.name}</div><div style={{fontSize:11,color:C.muted}}>{a.desc}</div></div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-    </div>
-  );
-}
-
-// â”€â”€ JOURNEY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-function Journey() {
-  const {progress,completeDay}=useProgress();
-  const [selected,setSelected]=useState(null);
-  const [busy,setBusy]=useState(false);
-  const [toast,setToast]=useState("");
-
-  const showToast=(m)=>{setToast(m);setTimeout(()=>setToast(""),3200);};
-  const curDay=progress?progress.completedDays.length+1:1;
-
-  const finish=async(day)=>{
-    if(!progress||progress.completedDays.includes(day.day)) return;
-    setBusy(true); await new Promise(r=>setTimeout(r,700));
-    completeDay(day.day,day.xp);
-    showToast(`ðŸŽ‰ Dia ${day.day} concluÃ­do! +${day.xp} XP`);
-    setBusy(false); setSelected(null);
-  };
-
-  if(selected) {
-    const done=progress?.completedDays.includes(selected.day);
-    const ph=PHASES.find(p=>selected.day>=p.range[0]&&selected.day<=p.range[1])||PHASES[0];
-    return (
-      <div style={{maxWidth:660,margin:"0 auto"}}>
-        <Toast msg={toast}/>
-        <button onClick={()=>setSelected(null)} style={{background:"none",border:"none",color:C.accent,cursor:"pointer",fontSize:13,marginBottom:20,fontFamily:"inherit",display:"flex",alignItems:"center",gap:7}}>â† Voltar Ã  Jornada</button>
-        <div style={{background:C.card,border:`1px solid ${ph.color}28`,borderRadius:20,padding:28,display:"flex",flexDirection:"column",gap:18}}>
-          <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
-            <div>
-              <div style={{display:"flex",gap:7,marginBottom:9,flexWrap:"wrap"}}>
-                <Badge text={`Dia ${selected.day}`} color={ph.color}/>
-                <Badge text={ph.name} color={ph.color}/>
-                <Badge text={selected.track?.toUpperCase()} color={C.faint}/>
-              </div>
-              <h2 style={{fontFamily:"'Syne',sans-serif",fontSize:"clamp(1.1rem,3vw,1.4rem)",fontWeight:900}}>{selected.title}</h2>
-            </div>
-            <Badge text={`+${selected.xp} XP`} color={C.green}/>
-          </div>
-          <div style={{background:C.surface,borderRadius:11,padding:18}}>
-            <p style={{fontSize:12,color:C.muted,marginBottom:7,fontWeight:600}}>ðŸŽ¯ MISSÃƒO PRINCIPAL</p>
-            <p style={{color:C.text,lineHeight:1.7,fontSize:14}}>{selected.mission}</p>
-          </div>
-          <div>
-            <p style={{fontSize:12,color:C.muted,marginBottom:10,fontWeight:600}}>âœ… MICROTAREFAS</p>
-            <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {selected.tasks.map((t,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:11,background:C.surface,borderRadius:9,padding:"10px 14px"}}>
-                  <div style={{width:20,height:20,borderRadius:5,border:`2px solid ${done?C.green:C.accent}`,background:done?"#10b98118":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:11,color:done?C.green:C.accent}}>
-                    {done?"âœ“":i+1}
-                  </div>
-                  <span style={{fontSize:13.5,color:C.text}}>{t}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div style={{background:C.surface,borderRadius:11,padding:17}}>
-            <p style={{fontSize:12,color:C.blue,marginBottom:6,fontWeight:600}}>ðŸ‡ºðŸ‡¸ INGLÃŠS TÃ‰CNICO</p>
-            <p style={{fontSize:13.5,color:C.muted,lineHeight:1.6}}>{selected.english}</p>
-          </div>
-          <div style={{background:C.surface,borderRadius:11,padding:17}}>
-            <p style={{fontSize:12,color:C.yellow,marginBottom:6,fontWeight:600}}>ðŸ’» PRÃTICA DO DIA</p>
-            <p style={{fontSize:13.5,color:C.muted,lineHeight:1.6}}>{selected.practice}</p>
-          </div>
-          {!done
-            ?<Btn onClick={()=>finish(selected)} disabled={busy} v="success" sx={{width:"100%",justifyContent:"center",fontSize:15}}>
-              {busy?"Salvando...`":`âœ… Concluir Dia ${selected.day} (+${selected.xp} XP)`}
-            </Btn>
-            :<div style={{background:"#10b98118",border:"1px solid #10b98135",borderRadius:11,padding:18,textAlign:"center",color:C.green,fontWeight:700,fontSize:15}}>
-              âœ… Dia {selected.day} ConcluÃ­do! ParabÃ©ns!
-            </div>
-          }
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div style={{maxWidth:1000,margin:"0 auto"}}>
-      <Toast msg={toast}/>
-      <div style={{marginBottom:26}}>
-        <h2 style={{fontFamily:"'Syne',sans-serif",fontSize:"clamp(1.3rem,3vw,1.75rem)",fontWeight:900,margin:"0 0 7px"}}>ðŸ—ºï¸ Jornada de 90 Dias</h2>
-        <p style={{color:C.muted,fontSize:13.5}}>Dia atual: <strong style={{color:C.accent}}>{curDay}</strong> Â· {Math.round((progress?.completedDays.length||0)/90*100)}% concluÃ­do</p>
-      </div>
-      {/* Overall bar */}
-      <Card sx={{marginBottom:26}}>
-        <div style={{background:C.border,borderRadius:999,height:12,overflow:"hidden",marginBottom:8}}>
-          <div style={{width:`${(progress?.completedDays.length||0)/90*100}%`,background:"linear-gradient(90deg,#6366f1,#8b5cf6)",height:"100%",borderRadius:999,transition:"width 0.8s ease"}}/>
-        </div>
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:11.5,color:C.faint}}>
-          <span>Dia 1</span><span style={{color:C.accent,fontWeight:700}}>{progress?.completedDays.length||0} dias completos</span><span>Dia 90</span>
-        </div>
-      </Card>
-      {PHASES.map(ph=>{
-        const days=DAY_DATA.filter(d=>d.day>=ph.range[0]&&d.day<=ph.range[1]);
-        return (
-          <div key={ph.id} style={{marginBottom:30}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-              <span style={{fontSize:22}}>{ph.icon}</span>
-              <div>
-                <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:15,color:ph.color,margin:0}}>{ph.name}</h3>
-                <span style={{fontSize:11.5,color:C.faint}}>Dias {ph.range[0]}â€“{ph.range[1]}</span>
-              </div>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:9}}>
-              {days.map(day=>{
-                const isDone=progress?.completedDays.includes(day.day);
-                const isCur=day.day===curDay;
-                const locked=day.day>curDay;
-                return (
-                  <button key={day.day} onClick={()=>!locked&&setSelected(day)}
-                    style={{background:isDone?"#10b98110":isCur?"#6366f112":C.card,border:`1px solid ${isDone?"#10b98138":isCur?"#6366f150":C.border}`,borderRadius:11,padding:"13px 11px",cursor:locked?"not-allowed":"pointer",textAlign:"left",opacity:locked?0.38:1,transition:"all 0.18s",fontFamily:"inherit",outline:"none"}}
-                    onMouseEnter={e=>!locked&&(e.currentTarget.style.borderColor=ph.color)}
-                    onMouseLeave={e=>!locked&&(e.currentTarget.style.borderColor=isDone?"#10b98138":isCur?"#6366f150":C.border)}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
-                      <span style={{fontSize:10.5,color:C.faint}}>Dia {day.day}</span>
-                      {isDone&&<span style={{color:C.green,fontSize:13}}>âœ…</span>}
-                      {isCur&&!isDone&&<span style={{color:C.accent,fontSize:9.5,fontWeight:800}}>HOJE</span>}
-                      {locked&&<span style={{fontSize:11}}>ðŸ”’</span>}
-                    </div>
-                    <div style={{fontSize:11.5,fontWeight:600,color:C.text,lineHeight:1.35,marginBottom:6}}>{day.title.slice(0,42)}{day.title.length>42?"...":""}</div>
-                    <Badge text={`${day.xp}xp`} color={isDone?C.green:C.accent}/>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// â”€â”€ TRACKS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-function Tracks() {
-  const [track,setTrack]=useState("python");
-  const {addXP}=useProgress();
-  const [doneEx,setDoneEx]=useState(()=>DB.g("doneEx")||[]);
-  const [sqlQ,setSqlQ]=useState("SELECT * FROM produtos ORDER BY preco DESC;");
-  const [sqlRes,setSqlRes]=useState(null);
-  const [pyCode,setPyCode]=useState("# Escreva seu cÃ³digo Python aqui\nprint('OlÃ¡, DataPath! ðŸ')\n\n# Exemplo: calculadora de IMC\npeso = 70\naltura = 1.75\nimc = peso / (altura ** 2)\nprint(f'IMC: {imc:.2f}')");
-  const [toast,setToast]=useState("");
-
-  const showToast=(m)=>{setToast(m);setTimeout(()=>setToast(""),2800);};
-
-  const markDone=(id,type,xp)=>{
-    const key=`${type}_${id}`;
-    if(doneEx.includes(key)) return;
-    const u=[...doneEx,key]; setDoneEx(u); DB.s("doneEx",u); addXP(xp);
-    showToast(`âœ… ExercÃ­cio concluÃ­do! +${xp} XP`);
-  };
-
-  const execSQL=()=>{
-    if(!sqlQ.trim()){setSqlRes({error:"Digite uma query."});return;}
-    setSqlRes(runSQL(sqlQ));
-  };
-
-  const tabs=[{id:"python",i:"ðŸ",l:"Python"},{id:"sql",i:"ðŸ—„ï¸",l:"SQL"},{id:"powerbi",i:"ðŸ“Š",l:"Power BI"},{id:"english",i:"ðŸ‡ºðŸ‡¸",l:"InglÃªs"}];
-
-  const mods={
-    python:[
-      {n:"Fundamentos",t:["VariÃ¡veis","Tipos","Operadores","Condicionais","LaÃ§os"],done:35},
-      {n:"Estruturas de Dados",t:["Listas","Tuplas","DicionÃ¡rios","Sets"],done:20},
-      {n:"FunÃ§Ãµes & Modularidade",t:["FunÃ§Ãµes","Lambdas","*args/**kwargs","MÃ³dulos"],done:10},
-      {n:"Pandas & NumPy",t:["DataFrame","Filtros","GroupBy","Merge","VisualizaÃ§Ã£o"],done:0},
-      {n:"Projetos PrÃ¡ticos",t:["AnÃ¡lise de Vendas","ETL Simples","Dashboard CLI","RelatÃ³rio Auto"],done:0},
-    ],
-    sql:[
-      {n:"Consultas BÃ¡sicas",t:["SELECT","WHERE","ORDER BY","LIMIT"],done:50},
-      {n:"AgregaÃ§Ãµes",t:["COUNT","SUM","AVG","GROUP BY","HAVING"],done:30},
-      {n:"JOINs",t:["INNER JOIN","LEFT JOIN","RIGHT JOIN","SELF JOIN"],done:10},
-      {n:"SQL AvanÃ§ado",t:["Subqueries","CTEs","Window Functions","Ãndices"],done:0},
-      {n:"AnÃ¡lise de Dados",t:["AnÃ¡lise de Vendas","Cohort","Funil","RFM"],done:0},
-    ],
-    powerbi:[
-      {n:"IntroduÃ§Ã£o",t:["Interface","Power Query","Conectar Dados","Tipos"],done:55},
-      {n:"Modelagem",t:["Relacionamentos","Esquema Estrela","Hierarquias"],done:20},
-      {n:"DAX",t:["Medidas","Colunas Calc.","CALCULATE","FILTER","ALL"],done:8},
-      {n:"VisualizaÃ§Ãµes",t:["GrÃ¡ficos","Slicers","Tooltips","Drillthrough"],done:0},
-      {n:"Projetos",t:["Dashboard Vendas","KPIs Financeiros","Storytelling"],done:0},
-    ],
-    english:[
-      {n:"VocabulÃ¡rio Essencial",t:["Data terms","Python terms","SQL terms","BI terms"],done:40},
-      {n:"DocumentaÃ§Ã£o",t:["README","Comments","Docstrings","Reports"],done:15},
-      {n:"ComunicaÃ§Ã£o",t:["Meetings","Presentations","Emails","Slack"],done:5},
-      {n:"Entrevistas",t:["Tech interviews","Behavioral","Case studies","Salary Negotiation"],done:0},
-    ],
-  };
-
-  const enTerms=[
-    {t:"Dataset",p:"Conjunto de dados",ex:"The dataset contains 1M rows."},
-    {t:"Pipeline",p:"Fluxo de dados/ETL",ex:"We built an ETL pipeline for sales data."},
-    {t:"Query",p:"Consulta ao banco",ex:"Run this SQL query to get the results."},
-    {t:"Dashboard",p:"Painel de controle visual",ex:"The dashboard shows real-time KPIs."},
-    {t:"Insight",p:"VisÃ£o analÃ­tica",ex:"The analysis revealed key business insights."},
-    {t:"Data-driven",p:"Orientado a dados",ex:"We make data-driven decisions."},
-    {t:"Stakeholder",p:"Parte interessada",ex:"Present the findings to stakeholders."},
-    {t:"ETL",p:"Extrair, Transformar, Carregar",ex:"The ETL process runs nightly at midnight."},
-    {t:"KPI",p:"Indicador Chave de Desempenho",ex:"Revenue growth is our primary KPI."},
-    {t:"Data Warehouse",p:"ArmazÃ©m de dados",ex:"All historical data lives in the data warehouse."},
-    {t:"Feature Engineering",p:"Engenharia de atributos",ex:"Feature engineering improved the model accuracy."},
-    {t:"Outlier",p:"Valor discrepante",ex:"Remove outliers before training the model."},
-  ];
-
-  const colors={python:C.blue,sql:C.green,powerbi:C.yellow,english:C.accent2};
-
-  return (
-    <div style={{maxWidth:1000,margin:"0 auto"}}>
-      <Toast msg={toast}/>
-      {/* Tabs */}
-      <div style={{display:"flex",gap:9,marginBottom:26,flexWrap:"wrap"}}>
-        {tabs.map(t=>(
-          <button key={t.id} onClick={()=>setTrack(t.id)}
-            style={{padding:"9px 18px",borderRadius:9,border:`2px solid ${track===t.id?colors[t.id]:C.border}`,background:track===t.id?colors[t.id]+"1a":C.card,color:track===t.id?colors[t.id]:C.muted,cursor:"pointer",fontWeight:700,fontSize:13.5,transition:"all 0.18s",fontFamily:"inherit"}}>
-            {t.i} {t.l}
-          </button>
-        ))}
-      </div>
-
-      {/* Modules */}
-      <div style={{marginBottom:28}}>
-        <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:17,marginBottom:18}}>MÃ³dulos â€” {tabs.find(t=>t.id===track)?.l}</h3>
-        <div style={{display:"flex",flexDirection:"column",gap:11}}>
-          {(mods[track]||[]).map((m,mi)=>(
-            <Card key={mi}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:11,flexWrap:"wrap",gap:8}}>
-                <h4 style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14.5,color:C.text}}>{m.n}</h4>
-                <Badge text={m.done>0?`${m.done}% concluÃ­do`:"NÃ£o iniciado"} color={m.done>60?C.green:m.done>0?C.yellow:C.faint}/>
-              </div>
-              <div style={{background:C.border,borderRadius:999,height:4,marginBottom:11}}>
-                <div style={{width:`${m.done}%`,background:colors[track],height:"100%",borderRadius:999,transition:"width 0.7s"}}/>
-              </div>
-              <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
-                {m.t.map(tp=><Badge key={tp} text={tp} color={C.faint}/>)}
-              </div>
-            </Card>
-          ))}
-        </div>
-      </div>
-
-      {/* Python Exercises */}
-      {track==="python"&&(
-        <>
-          <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:17,marginBottom:18}}>ðŸ’» ExercÃ­cios Python</h3>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(275px,1fr))",gap:13,marginBottom:26}}>
-            {PYTHON_EX.map(ex=>{
-              const key=`python_${ex.id}`, done=doneEx.includes(key);
-              const lc={Iniciante:C.green,IntermediÃ¡rio:C.yellow,AvanÃ§ado:C.red};
-              return (
-                <Card key={ex.id} sx={{border:`1px solid ${done?"#10b98130":C.border}`}}>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:9,flexWrap:"wrap",gap:6}}>
-                    <Badge text={ex.level} color={lc[ex.level]}/>
-                    <Badge text={`+${ex.xp} XP`} color={C.accent}/>
-                  </div>
-                  <h4 style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,margin:"0 0 7px"}}>{ex.title}</h4>
-                  <p style={{fontSize:12.5,color:C.muted,marginBottom:10,lineHeight:1.55}}>{ex.desc}</p>
-                  <div style={{fontSize:12,color:C.faint,background:C.surface,borderRadius:7,padding:"7px 11px",marginBottom:11}}>ðŸ’¡ {ex.hint}</div>
-                  {!done
-                    ?<Btn size="sm" v="secondary" onClick={()=>markDone(ex.id,"python",ex.xp)}>Marcar ConcluÃ­do</Btn>
-                    :<span style={{color:C.green,fontSize:13,fontWeight:700}}>âœ… ConcluÃ­do!</span>
-                  }
-                </Card>
-              );
-            })}
-          </div>
-          {/* Python sandbox */}
-          <Card sx={{border:`1px solid ${C.blue}28`}}>
-            <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:15,color:C.blue,marginBottom:8}}>ðŸ Editor Python â€” PrÃ¡tica Livre</h3>
-            <p style={{color:C.muted,fontSize:12.5,marginBottom:14}}>Escreva e salve seu cÃ³digo. Para executar, use Google Colab, Replit ou VS Code.</p>
-            <textarea value={pyCode} onChange={e=>setPyCode(e.target.value)} rows={10}
-              style={{width:"100%",background:"#050d1a",border:`1px solid ${C.border}`,borderRadius:9,color:"#60a5fa",fontSize:13,padding:15,fontFamily:"'Courier New',monospace",resize:"vertical",boxSizing:"border-box"}}/>
-            <div style={{display:"flex",gap:9,marginTop:12,flexWrap:"wrap"}}>
-              <Btn size="sm" sx={{background:C.blue}} onClick={()=>{addXP(10);showToast("CÃ³digo salvo! +10 XP ðŸ");}}>ðŸ’¾ Salvar (+10 XP)</Btn>
-              <Btn size="sm" v="secondary" onClick={()=>setPyCode("# Escreva seu cÃ³digo Python aqui\nprint('OlÃ¡, DataPath! ðŸ')")}>ðŸ”„ Limpar</Btn>
-            </div>
-          </Card>
-        </>
-      )}
-
-      {/* SQL Exercises + Sandbox */}
-      {track==="sql"&&(
-        <>
-          <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:17,marginBottom:18}}>ðŸ—„ï¸ ExercÃ­cios SQL</h3>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(275px,1fr))",gap:13,marginBottom:26}}>
-            {SQL_EX.map(ex=>{
-              const key=`sql_${ex.id}`, done=doneEx.includes(key);
-              const lc={Iniciante:C.green,IntermediÃ¡rio:C.yellow,AvanÃ§ado:C.red};
-              return (
-                <Card key={ex.id} sx={{border:`1px solid ${done?"#10b98130":C.border}`}}>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:9,flexWrap:"wrap",gap:6}}>
-                    <Badge text={ex.level} color={lc[ex.level]}/>
-                    <Badge text={`+${ex.xp} XP`} color={C.accent}/>
-                  </div>
-                  <h4 style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,margin:"0 0 7px"}}>{ex.title}</h4>
-                  <p style={{fontSize:12.5,color:C.muted,marginBottom:10,lineHeight:1.55}}>{ex.desc}</p>
-                  <div style={{fontSize:12,color:C.faint,background:C.surface,borderRadius:7,padding:"7px 11px",marginBottom:11}}>ðŸ’¡ {ex.hint}</div>
-                  {!done
-                    ?<Btn size="sm" v="secondary" onClick={()=>markDone(ex.id,"sql",ex.xp)}>Marcar ConcluÃ­do</Btn>
-                    :<span style={{color:C.green,fontSize:13,fontWeight:700}}>âœ… ConcluÃ­do!</span>
-                  }
-                </Card>
-              );
-            })}
-          </div>
-          {/* SQL Sandbox */}
-          <Card sx={{border:`1px solid ${C.green}28`}}>
-            <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:15,color:C.green,marginBottom:7}}>ðŸ—„ï¸ SQL Sandbox Interativo</h3>
-            <p style={{color:C.muted,fontSize:12.5,marginBottom:14}}>
-              Tabelas disponÃ­veis: <strong style={{color:C.text}}>produtos</strong>, <strong style={{color:C.text}}>vendas</strong>, <strong style={{color:C.text}}>clientes</strong>
-            </p>
-            <textarea value={sqlQ} onChange={e=>setSqlQ(e.target.value)} rows={4}
-              style={{width:"100%",background:"#020d0a",border:`1px solid ${C.border}`,borderRadius:9,color:"#34d399",fontSize:13.5,padding:14,fontFamily:"'Courier New',monospace",resize:"vertical",boxSizing:"border-box"}}/>
-            <div style={{display:"flex",gap:9,marginTop:11,flexWrap:"wrap"}}>
-              <Btn v="success" onClick={execSQL}>â–¶ Executar Query</Btn>
-              <Btn v="ghost" size="sm" onClick={()=>setSqlQ("SELECT * FROM produtos ORDER BY preco DESC;")}>Exemplo 1</Btn>
-              <Btn v="ghost" size="sm" onClick={()=>setSqlQ("SELECT categoria, SUM(valor) as total, COUNT(*) as qtd FROM vendas GROUP BY categoria ORDER BY total DESC;")}>Exemplo 2</Btn>
-              <Btn v="ghost" size="sm" onClick={()=>setSqlQ("SELECT * FROM produtos WHERE preco > 300 AND categoria = 'Tech';")}>Exemplo 3</Btn>
-            </div>
-            {sqlRes&&(
-              <div style={{marginTop:16}}>
-                {sqlRes.error
-                  ?<div style={{background:C.red+"18",border:`1px solid ${C.red}30`,borderRadius:8,padding:12,color:C.red,fontSize:13}}>{sqlRes.error}</div>
-                  :<div>
-                    <p style={{fontSize:12,color:C.muted,marginBottom:9}}>{sqlRes.count} registro(s) retornado(s)</p>
-                    <div style={{overflowX:"auto",borderRadius:9,border:`1px solid ${C.border}`}}>
-                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                        <thead>
-                          <tr>
-                            {Object.keys(sqlRes.rows[0]||{}).map(col=>(
-                              <th key={col} style={{background:C.surface,padding:"8px 14px",textAlign:"left",color:C.muted,fontWeight:600,whiteSpace:"nowrap",borderBottom:`1px solid ${C.border}`}}>{col}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {sqlRes.rows.map((row,i)=>(
-                            <tr key={i} style={{borderBottom:`1px solid ${C.border}`,background:i%2===0?C.card:C.surface}}>
-                              {Object.values(row).map((val,j)=>(
-                                <td key={j} style={{padding:"8px 14px",color:C.text,whiteSpace:"nowrap"}}>{String(val)}</td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                }
-              </div>
-            )}
-          </Card>
-        </>
-      )}
-
-      {/* Power BI content */}
-      {track==="powerbi"&&(
-        <Card sx={{border:`1px solid ${C.yellow}28`}}>
-          <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:15,color:C.yellow,marginBottom:14}}>ðŸ“Š Power BI â€” Roteiro de Estudo</h3>
-          {[
-            {t:"1. IntroduÃ§Ã£o",d:"Instale o Power BI Desktop, conecte-se a um CSV e explore a interface. Crie seu primeiro relatÃ³rio."},
-            {t:"2. Power Query",d:"Limpe e transforme dados: remova nulos, renomeie colunas, mude tipos, filtre linhas e faÃ§a merge de tabelas."},
-            {t:"3. Modelagem",d:"Crie relacionamentos entre tabelas. Use esquema estrela com tabela fato e dimensÃµes."},
-            {t:"4. DAX BÃ¡sico",d:"Crie medidas com SUM, AVERAGE, COUNT. Use CALCULATE para filtros dinÃ¢micos. Aprenda SUMX e RELATED."},
-            {t:"5. VisualizaÃ§Ãµes",d:"Use grÃ¡ficos de barras, linhas, pizza e mapas. Adicione slicers e crie drillthrough para detalhamento."},
-            {t:"6. Projeto Final",d:"Dashboard executivo de vendas com: KPIs, tendÃªncias mensais, top produtos e filtros por perÃ­odo/regiÃ£o."},
-          ].map((s,i)=>(
-            <div key={i} style={{background:C.surface,borderRadius:10,padding:"14px 16px",marginBottom:10}}>
-              <h4 style={{fontFamily:"'Syne',sans-serif",fontWeight:700,color:C.yellow,marginBottom:6,fontSize:13.5}}>{s.t}</h4>
-              <p style={{fontSize:13,color:C.muted,lineHeight:1.6,margin:0}}>{s.d}</p>
-            </div>
-          ))}
-          <a href="https://powerbi.microsoft.com/pt-br/downloads/" target="_blank" rel="noreferrer" style={{textDecoration:"none"}}>
-            <Btn v="yellow" size="sm">â¬‡ï¸ Baixar Power BI Desktop</Btn>
-          </a>
-        </Card>
-      )}
-
-      {/* English content */}
-      {track==="english"&&(
-        <>
-          <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:17,marginBottom:18}}>ðŸ‡ºðŸ‡¸ VocabulÃ¡rio TÃ©cnico</h3>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(270px,1fr))",gap:13,marginBottom:26}}>
-            {enTerms.map(term=>(
-              <Card key={term.t} sx={{border:`1px solid ${C.accent2}25`}}>
-                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:18,color:C.accent2,marginBottom:4}}>{term.t}</div>
-                <div style={{fontSize:13,color:C.muted,marginBottom:9,fontWeight:600}}>{term.p}</div>
-                <div style={{fontSize:12,color:C.faint,background:C.surface,borderRadius:7,padding:"8px 12px",fontStyle:"italic"}}>"{term.ex}"</div>
-              </Card>
-            ))}
-          </div>
-          <Card sx={{border:`1px solid ${C.accent2}25`}}>
-            <h4 style={{fontFamily:"'Syne',sans-serif",fontWeight:700,color:C.accent2,marginBottom:14,fontSize:15}}>ðŸŽ¤ Frases para Entrevistas em InglÃªs</h4>
-            {["I'm proficient in Python and SQL for data analysis and reporting.",
-              "I have hands-on experience building dashboards in Power BI with DAX measures.",
-              "In my projects, I worked with ETL pipelines and data modeling using star schema.",
-              "I'm comfortable reading and writing technical documentation in English.",
-              "My experience includes exploratory data analysis using pandas and matplotlib.",
-              "I can present data insights clearly to both technical and non-technical stakeholders.",
-              "I follow best practices for code documentation, version control with Git, and clean code.",
-            ].map((phrase,i)=>(
-              <div key={i} style={{padding:"10px 14px",background:C.surface,borderRadius:8,marginBottom:8,fontSize:13.5,color:C.text,borderLeft:`3px solid ${C.accent2}`,lineHeight:1.5}}>{phrase}</div>
-            ))}
-          </Card>
-        </>
-      )}
-    </div>
-  );
-}
-
-// â”€â”€ TOOLS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-function Tools() {
-  const {user}=useAuth();
-  const {addXP}=useProgress();
-  const [tool,setTool]=useState("pomodoro");
-  // Pomodoro
-  const [pomTime,setPomTime]=useState(25*60); const [pomActive,setPomActive]=useState(false); const [pomType,setPomType]=useState("work");
-  const timerRef=useRef(null);
-  // Notes
-  const [notes,setNotes]=useState(()=>DB.notes(user?.id));
-  const [ntitle,setNtitle]=useState(""); const [ntext,setNtext]=useState("");
-  // Goals
-  const [goals,setGoals]=useState(()=>DB.goals(user?.id));
-  const [gtxt,setGtxt]=useState("");
-  // Habits
-  const [habits,setHabits]=useState(()=>DB.habits(user?.id));
-  // Checklist
-  const [checks,setChecks]=useState(()=>DB.checklist(user?.id));
-  const [ctxt,setCtxt]=useState("");
-  const [toast,setToast]=useState("");
-
-  const showToast=(m)=>{setToast(m);setTimeout(()=>setToast(""),2500);};
-
-  useEffect(()=>{
-    if(pomActive) {
-      timerRef.current=setInterval(()=>{
-        setPomTime(t=>{
-          if(t<=1){
-            clearInterval(timerRef.current); setPomActive(false);
-            if(pomType==="work"){ addXP(20); showToast("ðŸ… SessÃ£o concluÃ­da! +20 XP"); }
-            const next=pomType==="work"?"break":"work";
-            setPomType(next); return next==="break"?5*60:25*60;
-          }
-          return t-1;
-        });
-      },1000);
-    } else clearInterval(timerRef.current);
-    return ()=>clearInterval(timerRef.current);
-  },[pomActive]);
-
-  const fmt=s=>`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
-  const pct=(1-(pomTime/(pomType==="work"?1500:300)))*100;
-
-  const saveNote=()=>{
-    if(!ntext.trim()) return;
-    const u=[{id:Date.now(),title:ntitle||"Nota",text:ntext,date:new Date().toLocaleDateString("pt-BR")},...notes];
-    setNotes(u); DB.setNotes(user?.id,u); setNtitle(""); setNtext(""); showToast("ðŸ“ Nota salva!");
-  };
-  const addGoal=()=>{
-    if(!gtxt.trim()) return;
-    const u=[{id:Date.now(),text:gtxt,done:false,date:new Date().toLocaleDateString("pt-BR")},...goals];
-    setGoals(u); DB.setGoals(user?.id,u); setGtxt("");
-  };
-  const toggleGoal=id=>{const u=goals.map(g=>g.id===id?{...g,done:!g.done}:g);setGoals(u);DB.setGoals(user?.id,u);};
-  const toggleHabit=id=>{
-    const u=habits.map(h=>h.id===id?{...h,done:!h.done,streak:!h.done?h.streak+1:h.streak}:h);
-    setHabits(u); DB.setHabits(user?.id,u); addXP(5); showToast("ðŸ” HÃ¡bito marcado! +5 XP");
-  };
-  const addCheck=()=>{
-    if(!ctxt.trim()) return;
-    const u=[...checks,{id:Date.now(),text:ctxt,done:false}]; setChecks(u); DB.setChecklist(user?.id,u); setCtxt("");
-  };
-  const toggleCheck=id=>{const u=checks.map(c=>c.id===id?{...c,done:!c.done}:c);setChecks(u);DB.setChecklist(user?.id,u);};
-  const delNote=id=>{const u=notes.filter(n=>n.id!==id);setNotes(u);DB.setNotes(user?.id,u);};
-  const delGoal=id=>{const u=goals.filter(g=>g.id!==id);setGoals(u);DB.setGoals(user?.id,u);};
-  const delCheck=id=>{const u=checks.filter(c=>c.id!==id);setChecks(u);DB.setChecklist(user?.id,u);};
-
-  const toolTabs=[{id:"pomodoro",i:"â±ï¸",l:"Pomodoro"},{id:"checklist",i:"âœ…",l:"Checklist"},{id:"notes",i:"ðŸ“",l:"Notas"},{id:"goals",i:"ðŸŽ¯",l:"Metas"},{id:"habits",i:"ðŸ”",l:"HÃ¡bitos"},{id:"planner",i:"ðŸ“…",l:"Planner"}];
-
-  return (
-    <div style={{maxWidth:900,margin:"0 auto"}}>
-      <Toast msg={toast}/>
-      <div style={{display:"flex",gap:8,marginBottom:26,flexWrap:"wrap"}}>
-        {toolTabs.map(t=>(
-          <button key={t.id} onClick={()=>setTool(t.id)}
-            style={{padding:"8px 16px",borderRadius:9,border:`2px solid ${tool===t.id?C.accent:C.border}`,background:tool===t.id?"#6366f116":C.card,color:tool===t.id?C.accent:C.muted,cursor:"pointer",fontWeight:600,fontSize:13,transition:"all 0.18s",fontFamily:"inherit"}}>
-            {t.i} {t.l}
-          </button>
-        ))}
-      </div>
-
-      {tool==="pomodoro"&&(
-        <div style={{maxWidth:380,margin:"0 auto"}}>
-          <Card sx={{textAlign:"center",padding:36}}>
-            <div style={{marginBottom:14}}><Badge text={pomType==="work"?"ðŸ… Foco":"â˜• Pausa"} color={pomType==="work"?C.red:C.green}/></div>
-            <div style={{fontSize:76,fontFamily:"'Syne',sans-serif",fontWeight:900,color:pomType==="work"?C.red:C.green,letterSpacing:-2,margin:"18px 0 6px"}}>{fmt(pomTime)}</div>
-            <div style={{width:200,margin:"0 auto 24px",background:C.border,borderRadius:999,height:7,overflow:"hidden"}}>
-              <div style={{width:`${pct}%`,background:pomType==="work"?C.red:C.green,height:"100%",borderRadius:999,transition:"width 1s linear"}}/>
-            </div>
-            <div style={{display:"flex",gap:11,justifyContent:"center",flexWrap:"wrap",marginBottom:16}}>
-              <Btn onClick={()=>setPomActive(!pomActive)} v={pomActive?"danger":"success"}>{pomActive?"â¸ Pausar":"â–¶ Iniciar"}</Btn>
-              <Btn v="secondary" onClick={()=>{setPomActive(false);setPomTime(25*60);setPomType("work");}}>ðŸ”„ Reset</Btn>
-            </div>
-            <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
-              {[["25min",1500,"work"],["5min",300,"break"],["15min",900,"break"]].map(([l,s,tp])=>(
-                <button key={l} onClick={()=>{setPomTime(s);setPomType(tp);setPomActive(false);}}
-                  style={{padding:"5px 13px",borderRadius:7,border:`1px solid ${C.border}`,background:C.surface,color:C.muted,cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>{l}</button>
-              ))}
-            </div>
-            <p style={{fontSize:11.5,color:C.faint,marginTop:18}}>+20 XP por sessÃ£o de 25min concluÃ­da</p>
-          </Card>
-        </div>
-      )}
-
-      {tool==="checklist"&&(
-        <Card>
-          <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,marginBottom:18,fontSize:16}}>âœ… Checklist DiÃ¡rio</h3>
-          <div style={{display:"flex",gap:9,marginBottom:18}}>
-            <input value={ctxt} onChange={e=>setCtxt(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addCheck()} placeholder="Adicionar tarefa do dia..."
-              style={{flex:1,background:C.surface,border:`1px solid ${C.border}`,borderRadius:9,padding:"10px 14px",color:C.text,fontSize:13.5,fontFamily:"inherit"}}/>
-            <Btn onClick={addCheck} size="sm">+ Adicionar</Btn>
-          </div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {checks.length===0&&<p style={{color:C.faint,fontSize:13.5,textAlign:"center",padding:"24px 0"}}>Nenhuma tarefa ainda. Adicione suas atividades do dia!</p>}
-            {checks.map(c=>(
-              <div key={c.id} style={{display:"flex",alignItems:"center",gap:11,padding:"11px 14px",background:C.surface,borderRadius:9,opacity:c.done?0.6:1}}>
-                <div onClick={()=>toggleCheck(c.id)} style={{width:20,height:20,borderRadius:5,border:`2px solid ${c.done?C.green:C.accent}`,background:c.done?"#10b98118":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,cursor:"pointer",fontSize:11,color:c.done?C.green:C.accent}}>
-                  {c.done&&"âœ“"}
-                </div>
-                <span style={{flex:1,fontSize:13.5,color:C.text,textDecoration:c.done?"line-through":"none"}}>{c.text}</span>
-                <button onClick={()=>delCheck(c.id)} style={{background:"none",border:"none",color:C.faint,cursor:"pointer",fontSize:16,lineHeight:1}}>Ã—</button>
-              </div>
-            ))}
-          </div>
-          {checks.length>0&&(
-            <p style={{fontSize:12,color:C.muted,marginTop:14,textAlign:"right"}}>
-              {checks.filter(c=>c.done).length}/{checks.length} tarefas concluÃ­das
-            </p>
-          )}
-        </Card>
-      )}
-
-      {tool==="notes"&&(
+    <div style={{padding:40, maxWidth:1200, margin:"0 auto"}}>
+      <header style={{display:"flex", justifyContent:"space-between", marginBottom:30}}>
         <div>
-          <Card sx={{marginBottom:18}}>
-            <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,marginBottom:16,fontSize:16}}>ðŸ“ Nova AnotaÃ§Ã£o</h3>
-            <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              <Inp label="TÃ­tulo (opcional)" value={ntitle} onChange={setNtitle} placeholder="TÃ­tulo da nota"/>
-              <Inp label="AnotaÃ§Ã£o" value={ntext} onChange={setNtext} placeholder="Escreva sua anotaÃ§Ã£o, dÃºvida ou aprendizado..." rows={4}/>
-              <Btn onClick={saveNote}>ðŸ’¾ Salvar Nota</Btn>
-            </div>
-          </Card>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(255px,1fr))",gap:13}}>
-            {notes.map(n=>(
-              <Card key={n.id}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"start",marginBottom:8}}>
-                  <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,color:C.text}}>{n.title}</span>
-                  <button onClick={()=>delNote(n.id)} style={{background:"none",border:"none",color:C.faint,cursor:"pointer",fontSize:18,lineHeight:1,marginLeft:8}}>Ã—</button>
-                </div>
-                <p style={{fontSize:13,color:C.muted,lineHeight:1.6,whiteSpace:"pre-wrap",marginBottom:9}}>{n.text.slice(0,200)}{n.text.length>200?"...":""}</p>
-                <span style={{fontSize:11,color:C.faint}}>{n.date}</span>
-              </Card>
-            ))}
-          </div>
+          <h1 style={{fontSize:28, fontWeight:900, color:C.text}}>Bem-vindo, {user.name}! ⚡</h1>
+          <p style={{color:C.muted}}>Nível {progress.level} · {progress.xp} XP acumulados</p>
         </div>
-      )}
+        <Btn onClick={logout} v="ghost">Sair</Btn>
+      </header>
 
-      {tool==="goals"&&(
+      <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(300px, 1fr))", gap:20}}>
         <Card>
-          <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,marginBottom:18,fontSize:16}}>ðŸŽ¯ Organizador de Metas</h3>
-          <div style={{display:"flex",gap:9,marginBottom:18}}>
-            <input value={gtxt} onChange={e=>setGtxt(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addGoal()} placeholder="Adicionar nova meta..."
-              style={{flex:1,background:C.surface,border:`1px solid ${C.border}`,borderRadius:9,padding:"10px 14px",color:C.text,fontSize:13.5,fontFamily:"inherit"}}/>
-            <Btn onClick={addGoal} size="sm">+ Meta</Btn>
-          </div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {goals.map(g=>(
-              <div key={g.id} style={{display:"flex",alignItems:"center",gap:11,padding:"13px 15px",background:C.surface,borderRadius:9}}>
-                <div onClick={()=>toggleGoal(g.id)} style={{width:22,height:22,borderRadius:999,border:`2px solid ${g.done?C.green:C.accent}`,background:g.done?C.green:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,cursor:"pointer",fontSize:12,color:"#fff"}}>
-                  {g.done&&"âœ“"}
-                </div>
-                <span style={{flex:1,fontSize:13.5,color:C.text,textDecoration:g.done?"line-through":"none"}}>{g.text}</span>
-                <span style={{fontSize:11,color:C.faint,marginRight:8}}>{g.date}</span>
-                <button onClick={()=>delGoal(g.id)} style={{background:"none",border:"none",color:C.faint,cursor:"pointer",fontSize:18,lineHeight:1}}>Ã—</button>
-              </div>
-            ))}
-            {goals.length===0&&<p style={{color:C.faint,fontSize:13.5,textAlign:"center",padding:"24px 0"}}>Nenhuma meta ainda. Defina suas metas de aprendizado!</p>}
-          </div>
+          <h3 style={{color:C.accent, marginBottom:10}}>🚀 Próxima Missão</h3>
+          <p style={{fontSize:18, fontWeight:700, marginBottom:5}}>Dia {progress.completedDays.length + 1}</p>
+          <p style={{color:C.muted, marginBottom:20}}>Domine os fundamentos iniciais de Python para análise de dados.</p>
+          <Btn>Continuar Jornada</Btn>
         </Card>
-      )}
 
-      {tool==="habits"&&(
         <Card>
-          <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,marginBottom:8,fontSize:16}}>ðŸ” Rastreador de HÃ¡bitos</h3>
-          <p style={{color:C.muted,fontSize:13,marginBottom:18}}>Marque os hÃ¡bitos de hoje. +5 XP por hÃ¡bito concluÃ­do.</p>
-          <div style={{display:"flex",flexDirection:"column",gap:11}}>
-            {habits.map(h=>(
-              <div key={h.id} onClick={()=>toggleHabit(h.id)}
-                style={{display:"flex",alignItems:"center",gap:15,padding:"15px 18px",background:h.done?h.color+"12":C.surface,border:`1px solid ${h.done?h.color+"35":C.border}`,borderRadius:11,cursor:"pointer",transition:"all 0.2s"}}>
-                <div style={{width:26,height:26,borderRadius:999,border:`2px solid ${h.color}`,background:h.done?h.color:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:13,color:"#fff"}}>
-                  {h.done&&"âœ“"}
-                </div>
-                <span style={{flex:1,fontSize:14,fontWeight:600,color:C.text}}>{h.name}</span>
-                <div style={{textAlign:"right"}}>
-                  <div style={{fontSize:20,fontFamily:"'Syne',sans-serif",fontWeight:900,color:h.color}}>{h.streak}</div>
-                  <div style={{fontSize:10,color:C.faint}}>dias</div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <h3 style={{color:C.green, marginBottom:10}}>🔥 Streak Atual</h3>
+          <p style={{fontSize:40, fontWeight:900}}>{progress.streak} Dias</p>
+          <p style={{color:C.muted}}>Não perca o foco hoje!</p>
         </Card>
-      )}
-
-      {tool==="planner"&&(
-        <Card>
-          <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,marginBottom:18,fontSize:16}}>ðŸ“… Planner Semanal</h3>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:8}}>
-            {["Seg","Ter","Qua","Qui","Sex","SÃ¡b","Dom"].map((d,i)=>(
-              <div key={d} style={{background:C.surface,borderRadius:9,padding:11,minHeight:90}}>
-                <div style={{fontSize:11.5,fontWeight:700,color:C.muted,marginBottom:8,textAlign:"center"}}>{d}</div>
-                <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                  <div style={{fontSize:10,background:C.accent+"1a",color:C.accent,borderRadius:4,padding:"3px 6px",textAlign:"center"}}>
-                    {["Python","SQL","Power BI","InglÃªs","RevisÃ£o","Projeto","Descanso"][i]}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <p style={{fontSize:12,color:C.faint,marginTop:14,textAlign:"center"}}>Personalize o planner com seus tÃ³picos de estudo diÃ¡rios</p>
-        </Card>
-      )}
-    </div>
-  );
-}
-
-// â”€â”€ LIBRARY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-function LibraryPage() {
-  const [search,setSearch]=useState("");
-  const [cat,setCat]=useState("Todos");
-  const cats=["Todos","Python","SQL","Power BI","InglÃªs","Datasets","Carreira"];
-  const filtered=LIBRARY.filter(i=>(cat==="Todos"||i.cat===cat)&&(i.title.toLowerCase().includes(search.toLowerCase())||i.tags.some(t=>t.includes(search.toLowerCase()))));
-
-  return (
-    <div style={{maxWidth:1000,margin:"0 auto"}}>
-      <div style={{marginBottom:24}}>
-        <h2 style={{fontFamily:"'Syne',sans-serif",fontSize:"clamp(1.3rem,3vw,1.75rem)",fontWeight:900,margin:"0 0 7px"}}>ðŸ“š Biblioteca</h2>
-        <p style={{color:C.muted,fontSize:13.5}}>Materiais, cheatsheets, apostilas e recursos para sua jornada.</p>
       </div>
-      <div style={{display:"flex",gap:11,marginBottom:18,flexWrap:"wrap",alignItems:"center"}}>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="ðŸ” Buscar por tÃ­tulo ou tag..."
-          style={{flex:"1 1 200px",background:C.card,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 15px",color:C.text,fontSize:13.5,fontFamily:"inherit"}}/>
-        <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
-          {cats.map(c=>(
-            <button key={c} onClick={()=>setCat(c)}
-              style={{padding:"7px 13px",borderRadius:7,border:`1px solid ${cat===c?C.accent:C.border}`,background:cat===c?"#6366f116":C.card,color:cat===c?C.accent:C.muted,cursor:"pointer",fontSize:12,fontWeight:600,transition:"all 0.18s",fontFamily:"inherit"}}>
-              {c}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(255px,1fr))",gap:14}}>
-        {filtered.map(item=>(
-          <Card key={item.id} sx={{transition:"all 0.2s",cursor:"default"}}
-            onMouseEnter={e=>{e.currentTarget.style.borderColor=C.accent;e.currentTarget.style.transform="translateY(-2px)";}}
-            onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.transform="none";}}>
-            <div style={{fontSize:30,marginBottom:11}}>{item.icon}</div>
-            <div style={{display:"flex",gap:6,marginBottom:9,flexWrap:"wrap"}}>
-              <Badge text={item.cat} color={C.accent}/>
-              <Badge text={item.type} color={C.faint}/>
+
+      <div style={{marginTop:40}}>
+        <h3 style={{marginBottom:20, fontWeight:800}}>🏆 Conquistas Recentes</h3>
+        <div style={{display:"flex", gap:15}}>
+          {ACHIEVEMENTS.slice(0,3).map(ach => (
+            <div key={ach.id} style={{background:C.surface, padding:15, borderRadius:12, textAlign:"center", width:150, border:`1px solid ${C.border}`}}>
+              <span style={{fontSize:30}}>{ach.icon}</span>
+              <p style={{fontSize:12, fontWeight:700, marginTop:5}}>{ach.name}</p>
             </div>
-            <h4 style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,margin:"0 0 7px",color:C.text}}>{item.title}</h4>
-            <p style={{fontSize:12.5,color:C.muted,lineHeight:1.55,margin:"0 0 12px"}}>{item.desc}</p>
-            <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:13}}>
-              {item.tags.map(t=><span key={t} style={{fontSize:10,color:C.faint,background:C.surface,borderRadius:4,padding:"2px 7px"}}>#{t}</span>)}
-            </div>
-            <a href={item.url} target="_blank" rel="noopener noreferrer" style={{textDecoration:"none"}}>
-              <Btn size="sm" v="secondary" sx={{width:"100%",justifyContent:"center"}}>ðŸ“– Acessar</Btn>
-            </a>
-          </Card>
-        ))}
-      </div>
-      {filtered.length===0&&<p style={{textAlign:"center",color:C.faint,padding:40}}>Nenhum material encontrado.</p>}
-    </div>
-  );
-}
-
-// â”€â”€ PORTFOLIO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-function Portfolio() {
-  const {user}=useAuth();
-  const {addXP,save}=useProgress();
-  const [projs,setProjs]=useState(()=>DB.portfolio(user?.id));
-  const [showForm,setShowForm]=useState(false);
-  const [form,setForm]=useState({title:"",desc:"",tech:"",github:"",demo:"",level:"Iniciante"});
-  const [toast,setToast]=useState("");
-
-  const showToast=(m)=>{setToast(m);setTimeout(()=>setToast(""),2800);};
-
-  const saveProj=()=>{
-    if(!form.title) return;
-    const u=[{id:Date.now(),...form,date:new Date().toLocaleDateString("pt-BR")},...projs];
-    setProjs(u); DB.setPortfolio(user?.id,u);
-    addXP(50); save({portfolioCount:(DB.progress(user?.id).portfolioCount||0)+1});
-    setForm({title:"",desc:"",tech:"",github:"",demo:"",level:"Iniciante"});
-    setShowForm(false); showToast("ðŸš€ Projeto adicionado! +50 XP");
-  };
-
-  const ideas=[
-    {t:"AnÃ¡lise de Vendas E-commerce",tech:"Python, Pandas, Matplotlib",lvl:"Iniciante",d:"Analise vendas, identifique padrÃµes e crie visualizaÃ§Ãµes com insights de negÃ³cio."},
-    {t:"Dashboard KPIs no Power BI",tech:"Power BI, DAX",lvl:"Iniciante",d:"Dashboard executivo com indicadores de uma empresa fictÃ­cia."},
-    {t:"AnÃ¡lise de Churn de Clientes",tech:"Python, SQL, Pandas",lvl:"IntermediÃ¡rio",d:"Identifique padrÃµes de cancelamento e proponha aÃ§Ãµes de retenÃ§Ã£o."},
-    {t:"ETL Pipeline com Python",tech:"Python, SQLite, Pandas",lvl:"IntermediÃ¡rio",d:"Pipeline que extrai, transforma e carrega dados de mÃºltiplas fontes."},
-    {t:"RelatÃ³rio de Mercado SQL",tech:"SQL, Power BI",lvl:"IntermediÃ¡rio",d:"AnÃ¡lise de mercado com queries avanÃ§adas visualizadas no Power BI."},
-    {t:"Sistema de RecomendaÃ§Ã£o",tech:"Python, Pandas, NumPy",lvl:"AvanÃ§ado",d:"RecomendaÃ§Ã£o baseada em filtragem colaborativa por similaridade."},
-  ];
-
-  return (
-    <div style={{maxWidth:1000,margin:"0 auto"}}>
-      <Toast msg={toast}/>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"start",marginBottom:26,flexWrap:"wrap",gap:12}}>
-        <div>
-          <h2 style={{fontFamily:"'Syne',sans-serif",fontSize:"clamp(1.3rem,3vw,1.75rem)",fontWeight:900,margin:"0 0 7px"}}>ðŸ’¼ PortfÃ³lio</h2>
-          <p style={{color:C.muted,fontSize:13.5}}>Construa e gerencie seu portfÃ³lio de dados.</p>
-        </div>
-        <Btn onClick={()=>setShowForm(!showForm)}>+ Projeto (+50 XP)</Btn>
-      </div>
-
-      {showForm&&(
-        <Card sx={{border:`1px solid ${C.accent}28`,marginBottom:24}}>
-          <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,marginBottom:18,fontSize:15}}>ðŸ“ Novo Projeto</h3>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-            <div style={{gridColumn:"1/-1"}}><Inp label="TÃ­tulo do Projeto" value={form.title} onChange={v=>setForm({...form,title:v})} placeholder="Ex: AnÃ¡lise de Vendas E-commerce"/></div>
-            <div style={{gridColumn:"1/-1"}}><Inp label="DescriÃ§Ã£o" value={form.desc} onChange={v=>setForm({...form,desc:v})} placeholder="Problema resolvido, tecnologias e resultados..." rows={3}/></div>
-            <Inp label="Tecnologias" value={form.tech} onChange={v=>setForm({...form,tech:v})} placeholder="Python, Pandas, SQL..."/>
-            <div>
-              <label style={{color:C.muted,fontSize:12.5,fontWeight:600,display:"block",marginBottom:5}}>NÃ­vel</label>
-              <select value={form.level} onChange={e=>setForm({...form,level:e.target.value})}
-                style={{width:"100%",padding:"11px 13px",background:C.surface,border:`1px solid ${C.border}`,borderRadius:9,color:C.text,fontSize:13.5,fontFamily:"inherit"}}>
-                {["Iniciante","IntermediÃ¡rio","AvanÃ§ado"].map(l=><option key={l}>{l}</option>)}
-              </select>
-            </div>
-            <Inp label="GitHub" value={form.github} onChange={v=>setForm({...form,github:v})} placeholder="https://github.com/..." icon="ðŸ”—"/>
-            <Inp label="Demo (opcional)" value={form.demo} onChange={v=>setForm({...form,demo:v})} placeholder="https://..." icon="ðŸŒ"/>
-          </div>
-          <div style={{display:"flex",gap:10,marginTop:16}}>
-            <Btn onClick={saveProj}>ðŸ’¾ Salvar</Btn>
-            <Btn v="secondary" onClick={()=>setShowForm(false)}>Cancelar</Btn>
-          </div>
-        </Card>
-      )}
-
-      {projs.length>0&&(
-        <div style={{marginBottom:36}}>
-          <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,marginBottom:16,fontSize:15}}>Meus Projetos ({projs.length})</h3>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(275px,1fr))",gap:14}}>
-            {projs.map(p=>(
-              <Card key={p.id}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
-                  <Badge text={p.level} color={C.accent}/>
-                  <span style={{fontSize:11,color:C.faint}}>{p.date}</span>
-                </div>
-                <h4 style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14.5,margin:"0 0 8px"}}>{p.title}</h4>
-                <p style={{fontSize:13,color:C.muted,lineHeight:1.55,marginBottom:11}}>{p.desc}</p>
-                <div style={{fontSize:12,color:C.faint,background:C.surface,borderRadius:6,padding:"6px 10px",marginBottom:12}}>ðŸ”§ {p.tech}</div>
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  {p.github&&<a href={p.github} target="_blank" rel="noreferrer" style={{textDecoration:"none"}}><Btn size="sm" v="secondary">ðŸ”— GitHub</Btn></a>}
-                  {p.demo&&<a href={p.demo} target="_blank" rel="noreferrer" style={{textDecoration:"none"}}><Btn size="sm" v="ghost">ðŸŒ Demo</Btn></a>}
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Guide */}
-      <div style={{marginBottom:32}}>
-        <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,marginBottom:16,fontSize:15}}>ðŸ“‹ Guia de PortfÃ³lio para Dados</h3>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(255px,1fr))",gap:12}}>
-          {[
-            {n:"1",t:"Organize o GitHub",d:"RepositÃ³rios limpos, README completo, descriÃ§Ã£o clara e instruÃ§Ãµes de uso."},
-            {n:"2",t:"Projetos Python",d:"AnÃ¡lise exploratÃ³ria, automaÃ§Ã£o, web scraping, dashboard com Streamlit."},
-            {n:"3",t:"Projetos SQL",d:"AnÃ¡lise de vendas, segmentaÃ§Ã£o, relatÃ³rios de performance, modelagem."},
-            {n:"4",t:"Power BI",d:"Dashboard de vendas, KPIs financeiros, anÃ¡lise de marketing."},
-            {n:"5",t:"Documente Tudo",d:"README com: problema, soluÃ§Ã£o, tecnologias, como rodar e screenshots."},
-            {n:"6",t:"Publique e Compartilhe",d:"LinkedIn, GitHub Pages. Mostre resultados e impacto gerado pelos projetos."},
-          ].map(g=>(
-            <Card key={g.n}>
-              <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:9}}>
-                <span style={{width:26,height:26,borderRadius:999,background:C.accent,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12.5,fontWeight:800,flexShrink:0}}>{g.n}</span>
-                <h4 style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13.5}}>{g.t}</h4>
-              </div>
-              <p style={{fontSize:13,color:C.muted,lineHeight:1.55}}>{g.d}</p>
-            </Card>
-          ))}
-        </div>
-      </div>
-
-      {/* Ideas */}
-      <div>
-        <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,marginBottom:16,fontSize:15}}>ðŸ’¡ Ideias de Projetos para PortfÃ³lio</h3>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(270px,1fr))",gap:12}}>
-          {ideas.map((p,i)=>(
-            <Card key={i}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:9,flexWrap:"wrap",gap:6}}>
-                <Badge text={p.lvl} color={p.lvl==="Iniciante"?C.green:p.lvl==="IntermediÃ¡rio"?C.yellow:C.red}/>
-              </div>
-              <h4 style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13.5,margin:"0 0 7px"}}>{p.t}</h4>
-              <p style={{fontSize:12.5,color:C.muted,lineHeight:1.55,marginBottom:8}}>{p.d}</p>
-              <div style={{fontSize:11.5,color:C.faint}}>ðŸ”§ {p.tech}</div>
-            </Card>
           ))}
         </div>
       </div>
@@ -1580,303 +241,47 @@ function Portfolio() {
   );
 }
 
-// â”€â”€ RESUME â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-function ResumePage() {
-  const {user}=useAuth();
-  const {addXP}=useProgress();
-  const [cv,setCv]=useState(()=>DB.resume(user?.id));
-  const [sec,setSec]=useState("info");
-  const [saved,setSaved]=useState(false);
-  const [toast,setToast]=useState("");
-
-  const showToast=(m)=>{setToast(m);setTimeout(()=>setToast(""),2500);};
-  const upd=(f,v)=>setCv(p=>({...p,[f]:v}));
-  const save=()=>{DB.setResume(user?.id,cv);addXP(15);setSaved(true);setTimeout(()=>setSaved(false),2000);showToast("ðŸ’¾ CurrÃ­culo salvo! +15 XP");};
-
-  const checks=[
-    {l:"Nome completo",done:!!cv.name},{l:"Email profissional",done:!!cv.email},
-    {l:"LinkedIn",done:!!cv.linkedin},{l:"GitHub com projetos",done:!!cv.github},
-    {l:"Resumo profissional",done:!!cv.summary},{l:"Habilidades listadas",done:cv.skills?.length>0},
-    {l:"Projetos com resultados",done:cv.projects?.length>0},
-    {l:"Palavras-chave de dados",done:cv.summary?.toLowerCase().includes("dados")||cv.summary?.toLowerCase().includes("python")||false},
-  ];
-  const score=Math.round((checks.filter(c=>c.done).length/checks.length)*100);
-
-  const tabs=[{id:"info",l:"ðŸ“‹ Info"},{id:"summary",l:"ðŸ“ Resumo"},{id:"skills",l:"ðŸ”§ Skills"},{id:"projects",l:"ðŸš€ Projetos"},{id:"preview",l:"ðŸ‘ï¸ Preview"}];
-
-  return (
-    <div style={{maxWidth:880,margin:"0 auto"}}>
-      <Toast msg={toast}/>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"start",marginBottom:24,flexWrap:"wrap",gap:12}}>
-        <div>
-          <h2 style={{fontFamily:"'Syne',sans-serif",fontSize:"clamp(1.3rem,3vw,1.75rem)",fontWeight:900,margin:"0 0 7px"}}>ðŸ“„ CurrÃ­culo ATS</h2>
-          <p style={{color:C.muted,fontSize:13.5}}>Monte seu currÃ­culo otimizado para sistemas de recrutamento automÃ¡tico.</p>
-        </div>
-        <div style={{display:"flex",gap:10,alignItems:"center"}}>
-          <div style={{background:score>70?"#10b98118":"#f59e0b18",border:`1px solid ${score>70?C.green:C.yellow}30`,borderRadius:10,padding:"8px 14px",textAlign:"center"}}>
-            <div style={{fontSize:20,fontWeight:900,color:score>70?C.green:C.yellow}}>{score}%</div>
-            <div style={{fontSize:10.5,color:C.muted}}>ATS Score</div>
-          </div>
-          <Btn onClick={save} v={saved?"success":"primary"}>{saved?"âœ… Salvo!":"ðŸ’¾ Salvar"}</Btn>
-        </div>
-      </div>
-
-      {/* ATS Checklist */}
-      <Card sx={{marginBottom:20}}>
-        <h4 style={{fontFamily:"'Syne',sans-serif",fontWeight:700,marginBottom:11,fontSize:13.5}}>âœ… Checklist ATS</h4>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(210px,1fr))",gap:7}}>
-          {checks.map((c,i)=>(
-            <div key={i} style={{display:"flex",alignItems:"center",gap:7,fontSize:13}}>
-              <span style={{color:c.done?C.green:C.faint}}>{c.done?"âœ…":"â¬œ"}</span>
-              <span style={{color:c.done?C.text:C.faint}}>{c.l}</span>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      {/* Section tabs */}
-      <div style={{display:"flex",gap:7,marginBottom:20,flexWrap:"wrap"}}>
-        {tabs.map(t=>(
-          <button key={t.id} onClick={()=>setSec(t.id)}
-            style={{padding:"7px 14px",borderRadius:8,border:`1px solid ${sec===t.id?C.accent:C.border}`,background:sec===t.id?"#6366f116":C.card,color:sec===t.id?C.accent:C.muted,cursor:"pointer",fontSize:12.5,fontWeight:600,transition:"all 0.18s",fontFamily:"inherit"}}>
-            {t.l}
-          </button>
-        ))}
-      </div>
-
-      <Card>
-        {sec==="info"&&(
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-            <div style={{gridColumn:"1/-1"}}><Inp label="Nome Completo" value={cv.name} onChange={v=>upd("name",v)} placeholder="JoÃ£o Silva"/></div>
-            <Inp label="TÃ­tulo Profissional" value={cv.title} onChange={v=>upd("title",v)} placeholder="Analista de Dados | Python & SQL"/>
-            <Inp label="Email" type="email" value={cv.email} onChange={v=>upd("email",v)} placeholder="joao@email.com"/>
-            <Inp label="Telefone" value={cv.phone} onChange={v=>upd("phone",v)} placeholder="(11) 99999-9999"/>
-            <Inp label="LinkedIn" value={cv.linkedin} onChange={v=>upd("linkedin",v)} placeholder="linkedin.com/in/joaosilva" icon="ðŸ”—"/>
-            <Inp label="GitHub" value={cv.github} onChange={v=>upd("github",v)} placeholder="github.com/joaosilva" icon="ðŸ™"/>
-          </div>
-        )}
-        {sec==="summary"&&(
-          <div>
-            <Inp label="Resumo Profissional (2-3 linhas, otimizado para ATS)" value={cv.summary} onChange={v=>upd("summary",v)} rows={4}
-              placeholder="Analista de Dados com experiÃªncia em Python, SQL e Power BI. Especialista em transformar dados em insights estratÃ©gicos. Projetos de anÃ¡lise de vendas, automaÃ§Ã£o e dashboards executivos com resultados mensurÃ¡veis."/>
-            <div style={{marginTop:14,background:C.surface,borderRadius:9,padding:14}}>
-              <p style={{fontSize:12.5,color:C.muted,marginBottom:9,fontWeight:600}}>ðŸ’¡ Palavras-chave recomendadas para ATS:</p>
-              <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
-                {["Python","SQL","Power BI","Pandas","ETL","AnÃ¡lise de dados","Dashboard","KPI","DAX","Data-driven","VisualizaÃ§Ã£o","Excel","NumPy","Git","Tableau"].map(k=>(
-                  <span key={k} style={{fontSize:11,background:C.accent+"1a",color:C.accent,borderRadius:5,padding:"3px 9px"}}>{k}</span>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-        {sec==="skills"&&(
-          <div>
-            <Inp label="Habilidades tÃ©cnicas (separadas por vÃ­rgula)" value={cv.skills?.join(", ")||""} onChange={v=>upd("skills",v.split(",").map(s=>s.trim()).filter(Boolean))} rows={3}
-              placeholder="Python, Pandas, NumPy, SQL, Power BI, Excel, DAX, ETL, Git, Matplotlib, Seaborn, Tableau"/>
-            {cv.skills?.length>0&&(
-              <div style={{display:"flex",gap:7,flexWrap:"wrap",marginTop:12}}>
-                {cv.skills.map(s=><Badge key={s} text={s} color={C.accent}/>)}
-              </div>
-            )}
-          </div>
-        )}
-        {sec==="projects"&&(
-          <div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-              <h4 style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14}}>Projetos no CurrÃ­culo</h4>
-              <Btn size="sm" onClick={()=>upd("projects",[...(cv.projects||[]),{title:"",desc:"",tech:"",link:""}])}>+ Adicionar</Btn>
-            </div>
-            {(cv.projects||[]).map((p,i)=>(
-              <div key={i} style={{background:C.surface,borderRadius:10,padding:16,marginBottom:12}}>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-                  <input value={p.title} onChange={e=>{const ps=[...cv.projects];ps[i].title=e.target.value;upd("projects",ps);}} placeholder="Nome do projeto"
-                    style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 13px",color:C.text,fontSize:13,fontFamily:"inherit"}}/>
-                  <input value={p.tech} onChange={e=>{const ps=[...cv.projects];ps[i].tech=e.target.value;upd("projects",ps);}} placeholder="Tecnologias"
-                    style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 13px",color:C.text,fontSize:13,fontFamily:"inherit"}}/>
-                </div>
-                <textarea value={p.desc} onChange={e=>{const ps=[...cv.projects];ps[i].desc=e.target.value;upd("projects",ps);}} rows={2}
-                  placeholder="Ex: Desenvolvi dashboard de vendas que reduziu o tempo de anÃ¡lise em 60%..."
-                  style={{width:"100%",background:C.card,border:`1px solid ${C.border}`,borderRadius:8,color:C.text,fontSize:13,padding:11,fontFamily:"inherit",resize:"vertical",boxSizing:"border-box"}}/>
-              </div>
-            ))}
-          </div>
-        )}
-        {sec==="preview"&&(
-          <div style={{background:"#fff",color:"#1a1a1a",borderRadius:10,padding:"36px 40px",fontFamily:"Arial,sans-serif",fontSize:13,lineHeight:1.65}}>
-            <div style={{borderBottom:"3px solid #6366f1",paddingBottom:18,marginBottom:18}}>
-              <h1 style={{fontSize:22,fontWeight:900,margin:"0 0 5px",color:"#1a1a1a"}}>{cv.name||"Seu Nome"}</h1>
-              <p style={{fontSize:14,color:"#6366f1",fontWeight:700,margin:"0 0 9px"}}>{cv.title||"Analista de Dados"}</p>
-              <div style={{display:"flex",gap:18,flexWrap:"wrap",fontSize:12,color:"#555"}}>
-                {cv.email&&<span>âœ‰ï¸ {cv.email}</span>}
-                {cv.phone&&<span>ðŸ“± {cv.phone}</span>}
-                {cv.linkedin&&<span>ðŸ”— {cv.linkedin}</span>}
-                {cv.github&&<span>ðŸ™ {cv.github}</span>}
-              </div>
-            </div>
-            {cv.summary&&<div style={{marginBottom:18}}>
-              <h2 style={{fontSize:12,fontWeight:800,color:"#6366f1",textTransform:"uppercase",letterSpacing:1,marginBottom:7}}>Perfil Profissional</h2>
-              <p style={{color:"#333",lineHeight:1.7,margin:0}}>{cv.summary}</p>
-            </div>}
-            {cv.skills?.length>0&&<div style={{marginBottom:18}}>
-              <h2 style={{fontSize:12,fontWeight:800,color:"#6366f1",textTransform:"uppercase",letterSpacing:1,marginBottom:7}}>CompetÃªncias TÃ©cnicas</h2>
-              <p style={{margin:0,color:"#333"}}>{cv.skills.join(" Â· ")}</p>
-            </div>}
-            {cv.projects?.filter(p=>p.title).length>0&&<div>
-              <h2 style={{fontSize:12,fontWeight:800,color:"#6366f1",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Projetos</h2>
-              {cv.projects.filter(p=>p.title).map((p,i)=>(
-                <div key={i} style={{marginBottom:11}}>
-                  <strong>{p.title}</strong>{p.tech&&<em style={{color:"#555",fontSize:12}}> â€” {p.tech}</em>}
-                  {p.desc&&<p style={{fontSize:12,color:"#444",margin:"4px 0 0",lineHeight:1.5}}>{p.desc}</p>}
-                </div>
-              ))}
-            </div>}
-          </div>
-        )}
-      </Card>
-    </div>
-  );
-}
-
-// â”€â”€ PROFILE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-function ProfilePage() {
-  const {user}=useAuth();
-  const {progress}=useProgress();
-  if(!progress) return null;
-  const earned=ACHIEVEMENTS.filter(a=>progress.achievements?.includes(a.id));
-  const all=ACHIEVEMENTS.filter(a=>!progress.achievements?.includes(a.id));
-
-  return (
-    <div style={{maxWidth:700,margin:"0 auto",display:"flex",flexDirection:"column",gap:20}}>
-      {/* Profile card */}
-      <div style={{background:"linear-gradient(135deg,#1e1b4b,#1a2744)",border:"1px solid #6366f128",borderRadius:18,padding:"28px 30px",textAlign:"center",position:"relative",overflow:"hidden"}}>
-        <div style={{position:"absolute",right:-10,top:-10,fontSize:80,opacity:0.04}}>âš¡</div>
-        <div style={{width:72,height:72,borderRadius:999,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:32,marginBottom:14}}>ðŸ‘¤</div>
-        <h2 style={{fontFamily:"'Syne',sans-serif",fontSize:20,fontWeight:900,margin:"0 0 5px"}}>{user?.name}</h2>
-        <p style={{color:C.muted,fontSize:13.5,margin:"0 0 14px"}}>{user?.email}</p>
-        <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
-          <Badge text={`NÃ­vel ${progress.level}`} color={C.accent}/>
-          <Badge text={`${progress.xp} XP`} color={C.accent2}/>
-          <Badge text={`ðŸ”¥ ${progress.streak} dias`} color={C.red}/>
-          <Badge text={`Dia ${(progress.completedDays.length||0)+1}/90`} color={C.green}/>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(145px,1fr))",gap:12}}>
-        <Stat icon="ðŸ“…" label="Dias Completos" value={progress.completedDays.length} color={C.accent}/>
-        <Stat icon="âš¡" label="XP Total" value={progress.xp} color={C.accent2}/>
-        <Stat icon="ðŸ”¥" label="Streak" value={`${progress.streak}d`} color={C.red}/>
-        <Stat icon="ðŸ†" label="Conquistas" value={earned.length} color={C.green}/>
-      </div>
-
-      {/* XP */}
-      <Card>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:13}}>
-          <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:14.5}}>Progresso de NÃ­vel</h3>
-          <Badge text={`NÃ­vel ${progress.level}`} color={C.accent}/>
-        </div>
-        <XPBar xp={progress.xp} level={progress.level}/>
-        <p style={{fontSize:11.5,color:C.faint,marginTop:7,textAlign:"right"}}>{xpForNext(progress.level)-progress.xp} XP para NÃ­vel {progress.level+1}</p>
-      </Card>
-
-      {/* Achievements earned */}
-      {earned.length>0&&(
-        <Card>
-          <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:14.5,margin:"0 0 14px"}}>ðŸ† Conquistas Desbloqueadas ({earned.length})</h3>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(195px,1fr))",gap:10}}>
-            {earned.map(a=>(
-              <div key={a.id} style={{background:C.surface,borderRadius:9,padding:"10px 14px",display:"flex",alignItems:"center",gap:9}}>
-                <span style={{fontSize:22}}>{a.icon}</span>
-                <div><div style={{fontSize:13,fontWeight:700}}>{a.name}</div><div style={{fontSize:11,color:C.muted}}>{a.desc}</div></div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {/* Locked achievements */}
-      {all.length>0&&(
-        <Card>
-          <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:14.5,margin:"0 0 14px"}}>ðŸ”’ Conquistas Bloqueadas</h3>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(195px,1fr))",gap:10}}>
-            {all.map(a=>(
-              <div key={a.id} style={{background:C.surface,borderRadius:9,padding:"10px 14px",display:"flex",alignItems:"center",gap:9,opacity:0.45}}>
-                <span style={{fontSize:22}}>ðŸ”’</span>
-                <div><div style={{fontSize:13,fontWeight:700}}>{a.name}</div><div style={{fontSize:11,color:C.muted}}>{a.desc}</div></div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {/* Security info */}
-      <Card>
-        <h3 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:14.5,margin:"0 0 14px"}}>ðŸ”’ SeguranÃ§a da Conta</h3>
-        {[
-          ["âœ… Hash de senha SHA-256 aplicado",C.green],
-          ["âœ… JWT com expiraÃ§Ã£o de 24 horas",C.green],
-          ["âœ… Rate limiting: mÃ¡x. 5 tentativas em 15 min",C.green],
-          ["âœ… SanitizaÃ§Ã£o de inputs (XSS prevention)",C.green],
-          ["âœ… Dados isolados por usuÃ¡rio (user isolation)",C.green],
-          ["âœ… SessÃ£o via sessionStorage (nÃ£o persiste)",C.green],
-        ].map(([t,c])=>(
-          <div key={t} style={{fontSize:13,color:c,display:"flex",alignItems:"center",gap:7,marginBottom:7}}>{t}</div>
-        ))}
-        <div style={{marginTop:14,background:C.surface,borderRadius:8,padding:"10px 13px"}}>
-          <p style={{fontSize:11.5,color:C.faint,margin:0}}>
-            âš ï¸ <strong style={{color:C.text}}>Em produÃ§Ã£o:</strong> use HTTPS obrigatÃ³rio, bcrypt/argon2 para hash real, PostgreSQL com queries parametrizadas, variÃ¡veis de ambiente seguras (.env), headers de seguranÃ§a (Helmet.js), CORS configurado e refresh tokens.
-          </p>
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-// â”€â”€ ROOT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-function AppRoot() {
-  const [page,setPage]=useState("landing");
-  const {user,loading}=useAuth();
-
-  useEffect(()=>{
-    if(!loading&&user) setPage("app");
-    else if(!loading&&!user&&page==="app") setPage("landing");
-  },[user,loading]);
-
-  if(loading) return (
-    <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Outfit',sans-serif"}}>
-      <div style={{textAlign:"center"}}>
-        <div style={{width:50,height:50,borderRadius:14,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:26,marginBottom:14}}>âš¡</div>
-        <p style={{color:C.muted,fontSize:14}}>Carregando DataPath...</p>
-      </div>
-    </div>
-  );
-
-  return (
-    <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0}
-        body{background:${C.bg};font-family:'Outfit',sans-serif}
-      `}</style>
-      {page==="landing"&&<Landing onLogin={()=>setPage("login")} onRegister={()=>setPage("register")}/>}
-      {page==="login"&&<AuthPage mode="login" onSuccess={()=>setPage("app")}/>}
-      {page==="register"&&<AuthPage mode="register" onSuccess={()=>setPage("app")}/>}
-      {page==="app"&&user&&(
-        <ProgressProvider>
-          <AppShell/>
-        </ProgressProvider>
-      )}
-    </>
-  );
-}
+// ── ROOT ──────────────────────────────────────────────────────
 
 export default function DataPath() {
+  const [isLogin, setIsLogin] = useState(true);
+
   return (
     <AuthProvider>
-      <AppRoot/>
+      <ProgressProvider>
+        <AuthConsumer setIsLogin={setIsLogin} isLogin={isLogin} />
+      </ProgressProvider>
     </AuthProvider>
   );
-    }
+}
+
+function AuthConsumer({setIsLogin, isLogin}) {
+  const {user, login, register, loading} = useContext(AuthCtx);
+  const [email, setEmail] = useState("");
+  const [pw, setPw] = useState("");
+  const [name, setName] = useState("");
+
+  if(loading) return <div style={{color:C.text, textAlign:"center", marginTop:100}}>Carregando...</div>;
+  if(user) return <div style={{background:C.bg, minHeight:"100vh", color:C.text}}><Dashboard /></div>;
+
+  return (
+    <div style={{background:C.bg, minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", color:C.text, fontFamily:"sans-serif"}}>
+      <div style={{background:C.card, padding:40, borderRadius:20, width:400, border:`1px solid ${C.border}`}}>
+        <h2 style={{textAlign:"center", marginBottom:30, fontWeight:900, color:C.accent}}>{isLogin ? "Login DataPath" : "Criar Conta"}</h2>
+        {!isLogin && <input placeholder="Nome" onChange={e=>setName(e.target.value)} style={inpStyle} />}
+        <input placeholder="Email" onChange={e=>setEmail(e.target.value)} style={inpStyle} />
+        <input type="password" placeholder="Senha" onChange={e=>setPw(e.target.value)} style={inpStyle} />
+        <button onClick={()=>isLogin?login(email,pw):register(name,email,pw)} style={btnStyle}>
+          {isLogin ? "Entrar" : "Cadastrar"}
+        </button>
+        <p onClick={()=>setIsLogin(!isLogin)} style={{textAlign:"center", marginTop:20, cursor:"pointer", color:C.muted, fontSize:14}}>
+          {isLogin ? "Não tem conta? Cadastre-se" : "Já tem conta? Faça Login"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+const inpStyle = {width:"100%", padding:12, marginBottom:15, borderRadius:8, border:`1px solid ${C.border}`, background:C.surface, color:"white", boxSizing:"border-box"};
+const btnStyle = {width:"100%", padding:12, borderRadius:8, border:"none", background:C.accent, color:"white", fontWeight:700, cursor:"pointer"};
+
