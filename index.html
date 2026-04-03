@@ -1,23 +1,227 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DataPath — Oficial</title>
-    <!-- Bibliotecas do React e Babel via CDN -->
+    
+    <!-- Bibliotecas Necessárias -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <style>
-      body { margin: 0; padding: 0; background-color: #020817; font-family: 'Outfit', sans-serif; }
-      #root { min-height: 100vh; }
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: #020817; color: #e2e8f0; font-family: 'Outfit', sans-serif; overflow-x: hidden; }
+        #root { min-height: 100vh; }
+        
+        /* Scrollbar Personalizada */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #020817; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+        
+        /* Animações simples */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
-  </head>
-  <body>
+</head>
+<body>
     <div id="root"></div>
-    
-    <!-- Link direto para o arquivo de código principal -->
-    <script type="text/babel" src="/src/main.jsx"></script>
-  </body>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useRef, createContext, useContext } = React;
+
+        // ============================================================
+        // SEGURANÇA E BANCO DE DADOS (CÓDIGO ORIGINAL)
+        // ============================================================
+        const Security = {
+            hashPassword: async (pw) => {
+                const data = new TextEncoder().encode(pw + "dp_salt_x9k2");
+                const hash = await crypto.subtle.digest("SHA-256", data);
+                return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,"0")).join("");
+            },
+            sanitize: (s) => typeof s === "string" ? s.replace(/[<>&"']/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;","'":"&#x27;"}[c])) : "",
+            validateEmail: (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e),
+            validatePassword: (p) => p.length >= 8 && /[A-Z]/.test(p) && /[0-9]/.test(p),
+            generateJWT: (uid) => {
+                const h = btoa(JSON.stringify({alg:"HS256",typ:"JWT"}));
+                const p = btoa(JSON.stringify({sub:uid,iat:Date.now(),exp:Date.now()+86400000}));
+                const s = btoa(uid+"dp_secret_key");
+                return `${h}.${p}.${s}`;
+            },
+            verifyJWT: (token) => {
+                try { const d = JSON.parse(atob(token.split(".")[1])); return d.exp > Date.now() ? d : null; }
+                catch { return null; }
+            },
+        };
+
+        const DB = {
+            g: (k) => { try { return JSON.parse(localStorage.getItem("dp_"+k)||"null"); } catch { return null; }},
+            s: (k,v) => { try { localStorage.setItem("dp_"+k, JSON.stringify(v)); } catch {} },
+            users: () => DB.g("users") || {},
+            setUsers: (u) => DB.s("users", u),
+            progress: (id) => DB.g("prog_"+id) || {userId:id, xp:0, level:1, streak:0, completedDays:[], achievements:[], trackProgress:{python:0,sql:0,powerbi:0,english:0}},
+            setProgress: (id,p) => DB.s("prog_"+id, p),
+            notes: (id) => DB.g("notes_"+id) || [],
+            setNotes: (id,n) => DB.s("notes_"+id, n),
+            portfolio: (id) => DB.g("pf_"+id) || [],
+            setPortfolio: (id,p) => DB.s("pf_"+id, p),
+            resume: (id) => DB.g("cv_"+id) || {name:"",title:"",email:"",skills:[],projects:[]},
+            setResume: (id,r) => DB.s("cv_"+id, r),
+            goals: (id) => DB.g("goals_"+id) || [],
+            setGoals: (id,g) => DB.s("goals_"+id, g),
+            habits: (id) => DB.g("habits_"+id) || [],
+            setHabits: (id,h) => DB.s("habits_"+id, h),
+            checklist: (id) => DB.g("check_"+id) || [],
+            setChecklist: (id,c) => DB.s("check_"+id, c),
+        };
+
+        const calcLevel = (xp) => Math.floor(Math.sqrt(xp/100))+1;
+        const xpForLevel = (lvl) => (lvl-1)*(lvl-1)*100;
+        const xpForNext = (lvl) => lvl*lvl*100;
+
+        // ============================================================
+        // DADOS DA JORNADA (DAY_DATA, PHASES, TABLES, etc.)
+        // ============================================================
+        const PHASES = [
+            {id:1,name:"Fase 1: Fundamentos",range:[1,30],color:"#3b82f6",icon:"🌱"},
+            {id:2,name:"Fase 2: Prática Guiada",range:[31,60],color:"#10b981",icon:"⚡"},
+            {id:3,name:"Fase 3: Projetos",range:[61,75],color:"#f59e0b",icon:"🚀"},
+            {id:4,name:"Fase 4: Portfólio & Carreira",range:[76,90],color:"#8b5cf6",icon:"🏆"},
+        ];
+
+        const DAY_DATA = [
+            {day:1,title:"Bem-vindo à Jornada!",phase:1,xp:50,track:"python",mission:"Configure seu ambiente.",tasks:["Tarefa 1","Tarefa 2"],english:"Data Analyst",practice:"Pratique hoje."},
+            // ... (Você pode colar todos os outros 90 dias aqui conforme seu código original)
+        ];
+
+        // COLE AQUI TODAS AS OUTRAS VARIÁVEIS (TABLES, LIBRARY, PYTHON_EX, SQL_EX) 
+        // QUE ESTAVAM NO SEU CÓDIGO ORIGINAL
+
+        // ============================================================
+        // CONTEXTOS E COMPONENTES UI (CÓDIGO ORIGINAL)
+        // ============================================================
+        const AuthCtx = createContext(null);
+        const ProgCtx = createContext(null);
+
+        function AuthProvider({children}) {
+            const [user,setUser] = useState(null);
+            const [loading,setLoading] = useState(true);
+
+            useEffect(()=>{
+                const tok = sessionStorage.getItem("dp_tok");
+                if(tok) {
+                    const d = Security.verifyJWT(tok);
+                    if(d) { const u=DB.users()[d.sub]; if(u) setUser({...u,password:undefined}); }
+                }
+                setLoading(false);
+            },[]);
+
+            const login = async (email,pw)=>{
+                const users=DB.users(), u=Object.values(users).find(u=>u.email===email.toLowerCase());
+                if(!u) return {error:"Credenciais inválidas."};
+                const h=await Security.hashPassword(pw);
+                if(h!==u.password) return {error:"Credenciais inválidas."};
+                const tok=Security.generateJWT(u.id);
+                sessionStorage.setItem("dp_tok",tok);
+                const safe={...u,password:undefined}; setUser(safe); return {user:safe};
+            };
+
+            const register = async (name,email,pw)=>{
+                const users=DB.users();
+                if(Object.values(users).find(u=>u.email===email.toLowerCase())) return {error:"Email já existe."};
+                const id=crypto.randomUUID(), h=await Security.hashPassword(pw);
+                const nu={id,name:Security.sanitize(name),email:email.toLowerCase(),password:h,createdAt:Date.now()};
+                users[id]=nu; DB.setUsers(users); DB.setProgress(id,DB.progress(id));
+                const tok=Security.generateJWT(id);
+                sessionStorage.setItem("dp_tok",tok);
+                const safe={...nu,password:undefined}; setUser(safe); return {user:safe};
+            };
+
+            const logout=()=>{ sessionStorage.removeItem("dp_tok"); setUser(null); };
+
+            return <AuthCtx.Provider value={{user,loading,login,register,logout}}>{children}</AuthCtx.Provider>;
+        }
+
+        function ProgressProvider({children}) {
+            const {user}=useContext(AuthCtx);
+            const [progress,setProgress]=useState(null);
+            useEffect(()=>{ if(user) setProgress(DB.progress(user.id)); else setProgress(null); },[user]);
+
+            const save=(upd)=>{
+                if(!user) return;
+                const cur=DB.progress(user.id);
+                const updated={...cur,...upd}; updated.level=calcLevel(updated.xp);
+                DB.setProgress(user.id,updated); setProgress({...updated});
+            };
+
+            return <ProgCtx.Provider value={{progress,save}}>{children}</ProgCtx.Provider>;
+        }
+
+        const useAuth=()=>useContext(AuthCtx);
+        const useProgress=()=>useContext(ProgCtx);
+
+        // ============================================================
+        // COMPONENTES DE INTERFACE (COLE OS SEUS AQUI)
+        // ============================================================
+        
+        // Exemplo de Botão e Landing Page simplificados para este arquivo único:
+        const C = { bg:"#020817", surface:"#0a1628", card:"#0f172a", border:"#1e293b", text:"#e2e8f0", accent:"#6366f1" };
+
+        function Landing({onLogin,onRegister}) {
+            return (
+                <div style={{minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", padding:20}}>
+                    <h1 style={{fontFamily:"'Syne', sans-serif", fontSize:"4rem", color:C.accent, marginBottom:10}}>DataPath</h1>
+                    <p style={{fontSize:"1.2rem", color:"#64748b", marginBottom:40}}>Sua jornada rumo à carreira de dados começa aqui.</p>
+                    <div style={{display:"flex", gap:15}}>
+                        <button onClick={onRegister} style={{padding:"15px 30px", background:C.accent, color:"white", border:"none", borderRadius:10, fontWeight:800, cursor:"pointer"}}>Começar Grátis</button>
+                        <button onClick={onLogin} style={{padding:"15px 30px", background:"#0f172a", color:"white", border:"1px solid #1e293b", borderRadius:10, fontWeight:800, cursor:"pointer"}}>Entrar</button>
+                    </div>
+                </div>
+            );
+        }
+
+        // ... (Cole aqui o restante dos seus componentes: AuthPage, AppShell, Dashboard, etc.)
+
+        function AppRoot() {
+            const [view, setView] = useState("landing");
+            const {user, loading} = useAuth();
+
+            if(loading) return <div style={{display:"flex", height:"100vh", alignItems:"center", justifyContent:"center"}}>Carregando...</div>;
+            
+            if(user) return (
+                <ProgressProvider>
+                    <div style={{padding:40}}>
+                        <h1>Bem-vindo, {user.name}!</h1>
+                        <p>Você está logado com sucesso.</p>
+                        <button onClick={() => window.location.reload()} style={{marginTop:20, padding:10}}>Sair</button>
+                    </div>
+                </ProgressProvider>
+            );
+
+            if(view === "landing") return <Landing onLogin={() => setView("login")} onRegister={() => setView("register")} />;
+            
+            return (
+                <div style={{display:"flex", height:"100vh", alignItems:"center", justifyContent:"center"}}>
+                    <div style={{background:C.card, padding:40, borderRadius:20, border:"1px solid #1e293b"}}>
+                        <h2>Acesso ao DataPath</h2>
+                        <p style={{marginBottom:20}}>Funcionalidade de Login/Registro ativa.</p>
+                        <button onClick={() => setView("landing")} style={{color:C.accent, background:"none", border:"none", cursor:"pointer"}}>Voltar</button>
+                    </div>
+                </div>
+            );
+        }
+
+        function DataPath() {
+            return (
+                <AuthProvider>
+                    <AppRoot />
+                </AuthProvider>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<DataPath />);
+    </script>
+</body>
 </html>
