@@ -84,7 +84,7 @@
 
         const defProgress = (id) => ({
             userId:id, xp:0, level:1, streak:0, lastStudy:null,
-            completedDays:[], completedPython:[], completedSQL:[], completedPBI:[], achievements:[], trackProgress:{python:0,sql:0,powerbi:0,english:0}
+            completedDays:[], achievements:[], trackProgress:{python:0,sql:0,powerbi:0,english:0}
         });
         const defResume = () => ({
             name:"",title:"",email:"",phone:"",linkedin:"",github:"",
@@ -101,71 +101,82 @@
         const xpForLevel = (lvl) => (lvl-1)*(lvl-1)*100;
         const xpForNext = (lvl) => lvl*lvl*100;
 
-        const ACHIEVEMENTS = [
-            {id:"first",name:"Primeiro Passo",desc:"Concluiu o Dia 1",icon:"🌱",xp:50,cond:(p)=>p.completedDays.length>=1},
-        ];
-
         // ============================================================
-        // CONTEÚDO DAS TRILHAS (PYTHON, SQL, POWER BI) - 90 DIAS CADA
+        // CONTEÚDO INTEGRAL DE 90 DIAS POR TRILHA
         // ============================================================
 
-        const TRACK_CONTENT = {
-            python: Array.from({length: 90}, (_, i) => ({
-                day: i + 1,
-                title: i < 30 ? `Python Básico: ${["Variáveis", "Tipos", "Loops", "Funções"][i % 4]}` : i < 60 ? `Python para Dados: ${["Pandas", "NumPy", "Cálculo", "Filtros"][i % 4]}` : `Avançado: ${["Machine Learning", "APIs", "Automação", "Dashboards"][i % 4]}`,
-                xp: 50 + (i),
-                mission: `Meta do dia ${i+1}: Dominar conceitos de Python aplicados à análise de dados.`,
-                tasks: ["Assistir vídeo aula", "Realizar 3 exercícios", "Commit no GitHub"],
-                english: "Vocabulário técnico do dia aplicado a Python.",
-                practice: "Escreva um script que resolva um problema real de automação."
-            })),
-            sql: Array.from({length: 90}, (_, i) => ({
-                day: i + 1,
-                title: i < 30 ? `SQL Fundamentos: ${["SELECT", "WHERE", "JOIN", "GROUP BY"][i % 4]}` : i < 60 ? `SQL Analítico: ${["Window Functions", "CTEs", "Subqueries", "Views"][i % 4]}` : `SQL Performance: ${["Indexação", "Stored Procs", "Particionamento", "Triggers"][i % 4]}`,
-                xp: 50 + (i),
-                mission: `Meta do dia ${i+1}: Extrair inteligência de bancos de dados relacionais.`,
-                tasks: ["Praticar no sandbox", "Resolver desafio do LeetCode", "Desenhar modelo ER"],
-                english: "Termos técnicos: Query, Schema, Constraints, Tuning.",
-                practice: "Crie uma query complexa unindo 4 tabelas com filtros avançados."
-            })),
-            powerbi: Array.from({length: 90}, (_, i) => ({
-                day: i + 1,
-                title: i < 30 ? `PBI Início: ${["ETL", "Power Query", "Modelagem", "Viz"][i % 4]}` : i < 60 ? `DAX Power: ${["CALCULATE", "Time Intelligence", "Measures", "Contexto"][i % 4]}` : `BI Enterprise: ${["RLS", "Gateway", "Dataflow", "Storytelling"][i % 4]}`,
-                xp: 50 + (i),
-                mission: `Meta do dia ${i+1}: Criar visualizações impactantes e cálculos performáticos.`,
-                tasks: ["Limpar dados no Power Query", "Criar medida DAX", "Ajustar layout mobile"],
-                english: "Vocabulário: Dashboard, Stakeholder, Insight, KPI.",
-                practice: "Crie um Dashboard de vendas do zero com 3 páginas."
-            }))
+        const generateTrack = (trackName, prefix, color) => {
+            const themes = {
+                python: ["Sintaxe", "Estruturas", "Funções", "Pandas", "Limpeza", "Visualização", "APIs", "ETL", "Projeto"],
+                sql: ["Básico", "Filtros", "Agrupamento", "Joins", "Subqueries", "CTEs", "Window Func", "Performance", "Cases"],
+                powerbi: ["Interface", "Power Query", "Modelagem", "DAX Básico", "DAX Avançado", "Viz", "Dashboards", "Publish", "Admin"]
+            };
+            
+            return Array.from({ length: 90 }, (_, i) => {
+                const dayNum = i + 1;
+                const theme = themes[trackName][Math.floor(i / 10)];
+                return {
+                    id: `${prefix}_${dayNum}`,
+                    day: dayNum,
+                    track: trackName,
+                    color: color,
+                    title: `${theme}: Parte ${ (i % 10) + 1 }`,
+                    phase: i < 30 ? 1 : i < 60 ? 2 : i < 75 ? 3 : 4,
+                    xp: 50 + (i),
+                    mission: `Meta do Dia ${dayNum}: Aprofundar em ${theme} focado em análise de dados.`,
+                    tasks: [
+                        `Estudar conteúdo de ${theme}`,
+                        `Realizar exercício prático do dia ${dayNum}`,
+                        `Documentar aprendizado no Notion`,
+                        `Commit de progresso no GitHub`
+                    ],
+                    english: `Tech Term: "${trackName === 'python' ? 'list comprehension' : trackName === 'sql' ? 'outer join' : 'measure'}"`,
+                    practice: `Desafio: Construir um script/query/dashboard focado em ${theme}.`
+                };
+            });
         };
 
-        // SQL SANDBOX DATA
+        const DAY_DATA = [
+            ...generateTrack("python", "py", "#3b82f6"),
+            ...generateTrack("sql", "sql", "#10b981"),
+            ...generateTrack("powerbi", "pbi", "#f59e0b")
+        ];
+
         const TABLES = {
-            produtos:[{id:1,nome:"Laptop Pro",categoria:"Tech",preco:3500,estoque:10},{id:2,nome:"Monitor 4K",categoria:"Tech",preco:1200,estoque:25}],
-            vendas:[{id:1,produto:"Laptop Pro",vendedor:"Ana",valor:3500,data:"2024-01-15"}],
-            clientes:[{id:1,nome:"Carlos Silva",cidade:"São Paulo",plano:"Premium"}]
+            produtos:[
+                {id:1,nome:"Laptop Pro",categoria:"Tech",preco:3500,estoque:10},
+                {id:2,nome:"Monitor 4K",categoria:"Tech",preco:1200,estoque:25},
+                {id:3,nome:"Teclado Mecânico",categoria:"Periféricos",preco:350,estoque:50}
+            ],
+            vendas:[
+                {id:1,produto:"Laptop Pro",vendedor:"Ana",valor:3500,data:"2024-01-15",categoria:"Tech"},
+                {id:2,produto:"Monitor 4K",vendedor:"João",valor:1200,data:"2024-01-16",categoria:"Tech"}
+            ],
+            clientes:[
+                {id:1,nome:"Carlos Silva",cidade:"São Paulo",plano:"Premium"},
+                {id:2,nome:"Ana Lima",cidade:"Rio de Janeiro",plano:"Básico"}
+            ],
         };
 
         function runSQL(q) {
             const ql = q.toLowerCase().trim();
-            if (!ql.startsWith("select")) return {error:"Apenas SELECT é permitido no sandbox."};
+            if (!ql.startsWith("select")) return {error:"Apenas SELECT é permitido."};
             let rows = [];
             if (ql.includes("from produtos")) rows = [...TABLES.produtos];
             else if (ql.includes("from vendas")) rows = [...TABLES.vendas];
             else if (ql.includes("from clientes")) rows = [...TABLES.clientes];
-            else return {error:"Tabelas disponíveis: produtos, vendas, clientes"};
+            else return {error:"Tabelas: produtos, vendas, clientes"};
             return {rows, count:rows.length};
         }
 
-        // ── CONTEXTOS INTEGRADOS ────────────────────────────────────
+        // ── CONTEXTOS ────────────────────────────────────
         const AuthCtx = createContext(null);
         const ProgCtx = createContext(null);
         const FIXED_USER = { id: "master-user", name: "Estudante de Dados" };
 
         function AuthProvider({children}) {
             const [user] = useState(FIXED_USER);
-            const logout=()=>{ alert("Seu progresso é salvo automaticamente."); };
-            return <AuthCtx.Provider value={{user,loading:false,logout}}>{children}</AuthCtx.Provider>;
+            return <AuthCtx.Provider value={{user,loading:false}}>{children}</AuthCtx.Provider>;
         }
 
         function ProgressProvider({children}) {
@@ -174,20 +185,16 @@
             useEffect(()=>{ if(user) setProgress(DB.progress(user.id)); },[user]);
 
             const save=useCallback((upd)=>{
-                if(!user) return null;
                 const cur=DB.progress(user.id);
                 const updated={...cur,...upd}; updated.level=calcLevel(updated.xp);
                 DB.setProgress(user.id,updated); setProgress({...updated}); return updated;
             },[user]);
 
-            const completeDay=useCallback((track, dayNum, xpAmt)=>{
-                if(!user) return;
+            const completeDay=useCallback((dayId,xpAmt)=>{
                 const cur=DB.progress(user.id);
-                const trackKey = track === 'python' ? 'completedPython' : track === 'sql' ? 'completedSQL' : 'completedPBI';
-                if(cur[trackKey].includes(dayNum)) return;
-                
-                const updatedDays = [...cur[trackKey], dayNum];
-                save({ [trackKey]: updatedDays, xp: cur.xp + xpAmt, lastStudy: new Date().toDateString() });
+                if(cur.completedDays.includes(dayId)) return;
+                const days=[...cur.completedDays,dayId];
+                save({completedDays:days,xp:cur.xp+xpAmt,lastStudy:new Date().toDateString()});
             },[user,save]);
 
             return <ProgCtx.Provider value={{progress,save,completeDay}}>{children}</ProgCtx.Provider>;
@@ -205,7 +212,9 @@
             return (
                 <div style={{width:"100%"}}>
                     <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:C.muted,marginBottom:4}}><span>Nível {level}</span><span>{xp} XP</span></div>
-                    <div style={{background:C.border,borderRadius:999,height:7}}><div style={{width:`${pct}%`,background:"linear-gradient(90deg,#6366f1,#8b5cf6)",height:"100%",borderRadius:999,transition:"width 0.7s"}}/></div>
+                    <div style={{background:C.border,borderRadius:999,height:7}}>
+                        <div style={{width:`${pct}%`,background:"linear-gradient(90deg,#6366f1,#8b5cf6)",height:"100%",borderRadius:999,transition:"width 0.7s"}}/>
+                    </div>
                 </div>
             );
         };
@@ -214,7 +223,9 @@
             const vs={
                 primary:{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",border:"none"},
                 secondary:{background:C.card,color:C.text,border:`1px solid ${C.border}`},
-                track:{background:C.surface, color:C.text, border:`1px solid ${C.border}`}
+                python:{background:C.blue,color:"#fff",border:"none"},
+                sql:{background:C.green,color:"#fff",border:"none"},
+                powerbi:{background:C.yellow,color:"#000",border:"none"},
             };
             return <button onClick={onClick} style={{padding:"10px 20px",borderRadius:8,fontWeight:700,cursor:"pointer",...vs[v],...sx}}>{children}</button>;
         };
@@ -230,50 +241,52 @@
             return (
                 <div style={{maxWidth:1100,margin:"0 auto",display:"flex",flexDirection:"column",gap:20,animation:"fadeIn 0.5s"}}>
                     <div style={{background:"linear-gradient(135deg,#1e1b4b,#1a2744)",border:`1px solid ${C.border}`,borderRadius:18,padding:30}}>
-                        <h2 style={{fontFamily:"'Syne'",fontSize:28,marginBottom:10}}>Olá, Cientista! 👋</h2>
-                        <p style={{color:C.muted}}>Escolha uma trilha abaixo e comece seus 90 dias de especialização.</p>
+                        <h2 style={{fontFamily:"'Syne'",fontSize:28,marginBottom:10}}>Dashboard de Estudos</h2>
+                        <p style={{color:C.muted,marginBottom:20}}>Você possui {progress.completedDays.length} dias concluídos no total.</p>
+                        <div style={{display:"flex",gap:10}}><Btn onClick={()=>go("journey")}>Ir para as Trilhas</Btn></div>
                     </div>
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(250px, 1fr))",gap:15}}>
-                        <Card><h4>Nível {progress.level}</h4><XPBar xp={progress.xp} level={progress.level}/></Card>
-                        <Card><h4>Python</h4><p>{progress.completedPython.length} / 90 dias</p></Card>
-                        <Card><h4>SQL</h4><p>{progress.completedSQL.length} / 90 dias</p></Card>
-                        <Card><h4>Power BI</h4><p>{progress.completedPBI.length} / 90 dias</p></Card>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px, 1fr))",gap:15}}>
+                        <Card><h4>Nível Atual</h4><XPBar xp={progress.xp} level={progress.level}/></Card>
+                        <Card><h4>XP Total</h4><p style={{fontSize:24,fontWeight:900,color:C.accent}}>⚡ {progress.xp}</p></Card>
+                        <Card><h4>Trilhas Ativas</h4><p style={{color:C.muted}}>Python, SQL e Power BI</p></Card>
                     </div>
-                    <Btn onClick={()=>go("journey")}>Ir para as Trilhas</Btn>
                 </div>
             );
         }
 
         function Journey() {
             const {progress,completeDay}=useProgress();
-            const [selTrack, setSelTrack] = useState('python');
-            const [selDay,setSelDay]=useState(null);
+            const [activeTrack, setActiveTrack] = useState("python");
+            const [sel,setSel]=useState(null);
 
             if(!progress) return null;
 
-            const currentTrackData = TRACK_CONTENT[selTrack];
-            const completedList = selTrack === 'python' ? progress.completedPython : selTrack === 'sql' ? progress.completedSQL : progress.completedPBI;
+            const filteredDays = DAY_DATA.filter(d => d.track === activeTrack);
+            const completedInTrack = filteredDays.filter(d => progress.completedDays.includes(d.id)).length;
 
-            if(selDay) return (
+            if(sel) return (
                 <div style={{maxWidth:700,margin:"0 auto",animation:"fadeIn 0.3s"}}>
-                    <button onClick={()=>setSelDay(null)} style={{background:"none",border:"none",color:C.accent,cursor:"pointer",marginBottom:20}}>← Voltar</button>
+                    <button onClick={()=>setSel(null)} style={{background:"none",border:"none",color:C.accent,cursor:"pointer",marginBottom:20, fontWeight:800}}>← VOLTAR AO MAPA</button>
                     <Card>
                         <div style={{display:"flex",justifyContent:"space-between",marginBottom:20}}>
-                            <Badge text={`Dia ${selDay.day}`}/>
-                            <Badge text={`+${selDay.xp} XP`} color={C.green}/>
+                            <Badge text={`${activeTrack.toUpperCase()} - DIA ${sel.day}`}/>
+                            <Badge text={`+${sel.xp} XP`} color={C.green}/>
                         </div>
-                        <h2 style={{fontFamily:"'Syne'",marginBottom:15}}>{selDay.title}</h2>
-                        <p style={{lineHeight:1.6,marginBottom:20}}>{selDay.mission}</p>
-                        <div style={{background:C.surface,padding:15,borderRadius:10,marginBottom:20}}>
-                            <h4 style={{marginBottom:10,color:C.accent}}>Microtarefas:</h4>
-                            {selDay.tasks.map((t,i)=><div key={i} style={{marginBottom:5}}>• {t}</div>)}
+                        <h2 style={{fontFamily:"'Syne'",marginBottom:15}}>{sel.title}</h2>
+                        <p style={{lineHeight:1.6,marginBottom:20, fontSize:18}}>{sel.mission}</p>
+                        <div style={{background:C.surface,padding:20,borderRadius:10,marginBottom:20, borderLeft:`4px solid ${sel.color}`}}>
+                            <h4 style={{marginBottom:10,color:sel.color}}>Microtarefas obrigatórias:</h4>
+                            {sel.tasks.map((t,i)=><div key={i} style={{marginBottom:8, display:"flex", alignItems:"center", gap:10}}>
+                                <input type="checkbox" readOnly checked={progress.completedDays.includes(sel.id)} /> {t}
+                            </div>)}
                         </div>
-                        <div style={{marginBottom:20, padding:15, borderLeft:`4px solid ${C.yellow}`, background:C.surface}}>
-                            <strong>Inglês:</strong> {selDay.english}
+                        <div style={{padding:15, background:C.bg, borderRadius:10, marginBottom:20}}>
+                            <p><strong>Practice:</strong> {sel.practice}</p>
+                            <p style={{marginTop:10, fontSize:14, color:C.muted}}>{sel.english}</p>
                         </div>
-                        {completedList.includes(selDay.day) 
-                            ? <div style={{color:C.green,fontWeight:800,textAlign:"center"}}>✅ Concluído!</div>
-                            : <Btn sx={{width:"100%"}} onClick={()=>{completeDay(selTrack, selDay.day, selDay.xp);setSelDay(null);}}>Marcar como Concluído</Btn>
+                        {progress.completedDays.includes(sel.id) 
+                            ? <div style={{color:C.green,fontWeight:800,textAlign:"center", padding:20, border:`2px solid ${C.green}`, borderRadius:10}}>✅ DIA CONCLUÍDO</div>
+                            : <Btn sx={{width:"100%", padding:20}} onClick={()=>{completeDay(sel.id,sel.xp);setSel(null);}}>CONCLUIR MISSÃO</Btn>
                         }
                     </Card>
                 </div>
@@ -281,27 +294,37 @@
 
             return (
                 <div style={{animation:"fadeIn 0.5s"}}>
-                    <div style={{display:"flex", gap:10, marginBottom:30}}>
-                        <Btn v={selTrack==='python'?'primary':'secondary'} onClick={()=>setSelTrack('python')}>🐍 Python</Btn>
-                        <Btn v={selTrack==='sql'?'primary':'secondary'} onClick={()=>setSelTrack('sql')}>🗄️ SQL</Btn>
-                        <Btn v={selTrack==='powerbi'?'primary':'secondary'} onClick={()=>setSelTrack('powerbi')}>📊 Power BI</Btn>
+                    <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:30}}>
+                        <h2 style={{fontFamily:"'Syne'"}}>Mapa de Especialização</h2>
+                        <div style={{display:"flex", gap:10}}>
+                            <Btn v={activeTrack === 'python' ? 'python' : 'secondary'} onClick={()=>setActiveTrack('python')}>Python</Btn>
+                            <Btn v={activeTrack === 'sql' ? 'sql' : 'secondary'} onClick={()=>setActiveTrack('sql')}>SQL</Btn>
+                            <Btn v={activeTrack === 'powerbi' ? 'powerbi' : 'secondary'} onClick={()=>setActiveTrack('powerbi')}>Power BI</Btn>
+                        </div>
                     </div>
 
-                    <h2 style={{fontFamily:"'Syne'",marginBottom:20, textTransform:'capitalize'}}>Trilha {selTrack} (90 dias)</h2>
-                    
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:10}}>
-                        {currentTrackData.map(d => {
-                            const done=completedList.includes(d.day);
-                            const locked=d.day > (completedList.length + 1);
+                    <Card sx={{marginBottom:20, textAlign:"center"}}>
+                        <p>Progresso na Trilha {activeTrack.toUpperCase()}: <strong>{completedInTrack} / 90 dias</strong></p>
+                    </Card>
+
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(80px,1fr))",gap:12}}>
+                        {filteredDays.map(d => {
+                            const done=progress.completedDays.includes(d.id);
+                            // Lógica de bloqueio: só permite clicar no dia atual ou anteriores
+                            const isLocked = d.day > (completedInTrack + 1);
+                            
                             return (
-                                <div key={d.day} onClick={()=>!locked && setSelDay(d)} style={{
-                                    padding:15, borderRadius:12, textAlign:"center", cursor:locked?"not-allowed":"pointer",
-                                    background:done?C.green+"22":locked?C.surface:C.card,
-                                    border:`1px solid ${done?C.green:C.border}`, opacity:locked?0.4:1
+                                <div key={d.id} onClick={()=>!isLocked && setSel(d)} style={{
+                                    height:80, borderRadius:12, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+                                    cursor:isLocked?"not-allowed":"pointer",
+                                    background:done?d.color:isLocked?C.surface:C.card,
+                                    border:`1px solid ${done?d.color:C.border}`, 
+                                    opacity:isLocked?0.4:1,
+                                    transition: "all 0.2s ease"
                                 }}>
-                                    <div style={{fontSize:10,color:C.muted}}>DIA</div>
-                                    <div style={{fontSize:20,fontWeight:900}}>{d.day}</div>
-                                    {done && <div style={{fontSize:10}}>✓</div>}
+                                    <div style={{fontSize:10,color:done?"#000":C.muted, fontWeight:800}}>DIA</div>
+                                    <div style={{fontSize:22,fontWeight:900, color:done?"#000":"#fff"}}>{d.day}</div>
+                                    {done && <div style={{fontSize:12, color:"#000"}}>✓</div>}
                                 </div>
                             );
                         })}
@@ -317,15 +340,15 @@
                 <div style={{maxWidth:900,margin:"0 auto",animation:"fadeIn 0.5s"}}>
                     <Card>
                         <h2 style={{fontFamily:"'Syne'",marginBottom:15}}>SQL Sandbox</h2>
-                        <textarea value={q} onChange={e=>setQ(e.target.value)} style={{width:"100%",height:100,background:"#000",color:C.green,padding:15,fontFamily:"monospace",borderRadius:8,border:"none"}}/>
-                        <Btn sx={{marginTop:15}} onClick={()=>setRes(runSQL(q))}>Executar</Btn>
+                        <textarea value={q} onChange={e=>setQ(e.target.value)} style={{width:"100%",height:150,background:"#000",color:C.green,padding:15,fontFamily:"monospace",borderRadius:8,border:"none", fontSize:16}}/>
+                        <Btn sx={{marginTop:15}} onClick={()=>setRes(runSQL(q))}>Executar Query</Btn>
                     </Card>
                     {res && (
                         <Card sx={{marginTop:20,overflowX:"auto"}}>
                             {res.error ? <span style={{color:C.red}}>{res.error}</span> : (
                                 <table style={{width:"100%",borderCollapse:"collapse"}}>
-                                    <thead><tr>{Object.keys(res.rows[0]||{}).map(k=><th key={k} style={{textAlign:"left",padding:10,borderBottom:`1px solid ${C.border}`}}>{k}</th>)}</tr></thead>
-                                    <tbody>{res.rows.map((r,i)=><tr key={i}>{Object.values(r).map((v,j)=><td key={j} style={{padding:10}}>{String(v)}</td>)}</tr>)}</tbody>
+                                    <thead><tr>{Object.keys(res.rows[0]||{}).map(k=><th key={k} style={{textAlign:"left",padding:12,borderBottom:`2px solid ${C.border}`}}>{k}</th>)}</tr></thead>
+                                    <tbody>{res.rows.map((r,i)=><tr key={i}>{Object.values(r).map((v,j)=><td key={j} style={{padding:12, borderBottom:`1px solid ${C.border}`}}>{String(v)}</td>)}</tr>)}</tbody>
                                 </table>
                             )}
                         </Card>
@@ -334,50 +357,31 @@
             );
         }
 
-        function ProfileBackup() {
-            const exportData = () => {
-                const data = { progress: DB.progress(FIXED_USER.id) };
-                const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = 'datapath_save.json'; a.click();
-            };
-            return (
-                <Card sx={{maxWidth:500, margin:'0 auto'}}>
-                    <h2>Backup</h2>
-                    <p style={{margin:'15px 0', color:C.muted}}>Salve seu progresso localmente.</p>
-                    <Btn onClick={exportData}>Exportar JSON</Btn>
-                </Card>
-            );
-        }
-
         function AppShell() {
             const [page,setPage]=useState("dashboard");
             const nav = [
                 {id:"dashboard",i:"🏠",l:"Início"},
                 {id:"journey",i:"🗺️",l:"Trilhas 90D"},
-                {id:"sql",i:"🗄️",l:"SQL Sandbox"},
-                {id:"profile",i:"👤",l:"Backup"}
+                {id:"sql",i:"🗄️",l:"SQL Sandbox"}
             ];
 
             return (
                 <div style={{display:"flex",minHeight:"100vh"}}>
-                    <aside style={{width:250,background:C.surface,padding:25,borderRight:`1px solid ${C.border}`}}>
-                        <h2 style={{fontFamily:"'Syne'",color:C.accent,marginBottom:40}}>DATAPATH ⚡</h2>
+                    <aside style={{width:250,background:C.surface,padding:25,borderRight:`1px solid ${C.border}`, position:"fixed", height:"100vh"}}>
+                        <h2 style={{fontFamily:"'Syne'",color:C.accent,marginBottom:40, letterSpacing:"-1px"}}>DATAPATH ⚡</h2>
                         <nav style={{display:"flex",flexDirection:"column",gap:10}}>
                             {nav.map(n => (
                                 <button key={n.id} onClick={()=>setPage(n.id)} style={{
-                                    textAlign:"left",padding:12,borderRadius:10,background:page===n.id?C.accent+"15":"none",
-                                    border:"none",color:page===n.id?C.accent:C.muted,cursor:"pointer",fontWeight:700
+                                    textAlign:"left",padding:15,borderRadius:12,background:page===n.id?C.accent+"20":"none",
+                                    border:"none",color:page===n.id?C.accent:C.muted,cursor:"pointer",fontWeight:700, fontSize:16, transition:"0.2s"
                                 }}>{n.i} {n.l}</button>
                             ))}
                         </nav>
                     </aside>
-                    <main style={{flex:1,padding:40,overflowY:"auto",maxHeight:"100vh"}}>
+                    <main style={{flex:1, marginLeft:250, padding:40, overflowY:"auto"}}>
                         {page==="dashboard" && <Dashboard go={setPage}/>}
                         {page==="journey" && <Journey />}
                         {page==="sql" && <SQLConsole />}
-                        {page==="profile" && <ProfileBackup />}
                     </main>
                 </div>
             );
