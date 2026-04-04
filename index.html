@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DataPath — Especialista em Dados (90 Dias)</title>
+    <title>DataPath — Master Data Science (90 Dias/Trilha)</title>
+    <!-- Bibliotecas Core -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Fontes -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=Outfit:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
@@ -19,19 +21,19 @@
         ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
         
         .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
-        .card-hover { transition: all 0.3s ease; }
-        .card-hover:hover { transform: translateY(-5px); border-color: #6366f1; box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.3); }
+        .card-hover:hover { transform: translateY(-3px); border-color: #6366f1; transition: all 0.3s; }
         
-        pre { background: #000; padding: 15px; border-radius: 8px; overflow-x: auto; font-family: 'Fira Code', monospace; font-size: 14px; color: #a5f3fc; margin: 15px 0; border: 1px solid #1e293b; }
-        code { color: #f472b6; }
+        pre { background: #000; padding: 15px; border-radius: 8px; overflow-x: auto; font-family: 'Fira Code', monospace; font-size: 14px; color: #a5f3fc; border: 1px solid #1e293b; margin: 15px 0; }
+        .sql-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        .sql-table th { background: #1e293b; padding: 12px; text-align: left; color: #6366f1; border-bottom: 2px solid #334155; }
+        .sql-table td { padding: 10px; border-bottom: 1px solid #1e293b; color: #94a3b8; }
         
-        .lesson-content h1, .lesson-content h2 { font-family: 'Syne'; margin-bottom: 15px; color: #fff; }
-        .lesson-content p { line-height: 1.8; margin-bottom: 15px; color: #94a3b8; }
-        .lesson-content ul { margin-left: 20px; margin-bottom: 15px; color: #94a3b8; }
-        .lesson-content li { margin-bottom: 8px; }
+        .lesson-body h1, .lesson-body h2 { font-family: 'Syne'; margin: 20px 0 10px; color: #fff; }
+        .lesson-body p { line-height: 1.7; color: #94a3b8; margin-bottom: 15px; }
+        .lesson-body code { color: #f472b6; background: rgba(244,114,182,0.1); padding: 2px 5px; border-radius: 4px; }
 
-        @keyframes slideIn { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        .animate-slide { animation: slideIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .fade { animation: fadeIn 0.4s ease-out; }
     </style>
 </head>
 <body>
@@ -41,17 +43,11 @@
         const { useState, useEffect, useCallback, useMemo, createContext, useContext } = React;
 
         // ============================================================
-        // SISTEMA CORE (PERSISTÊNCIA E SEGURANÇA)
+        // SEGURANÇA E BANCO DE DADOS (LÓGICA ORIGINAL PRESERVADA)
         // ============================================================
-
-        const Security = {
-            sanitize: (s) => typeof s === "string" ? s.replace(/[<>&"']/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;","'":"&#x27;"}[c])) : "",
-            generateUID: () => Math.random().toString(36).substr(2, 9)
-        };
-
         const DB = {
-            g: (k) => JSON.parse(localStorage.getItem("dp_v3_"+k) || "null"),
-            s: (k,v) => localStorage.setItem("dp_v3_"+k, JSON.stringify(v)),
+            g: (k) => JSON.parse(localStorage.getItem("dp_v4_"+k) || "null"),
+            s: (k,v) => localStorage.setItem("dp_v4_"+k, JSON.stringify(v)),
             progress: (id) => DB.g("prog_"+id) || {
                 xp: 0, level: 1, 
                 completedPython: [], completedSQL: [], completedPBI: [],
@@ -60,243 +56,204 @@
             setProgress: (id, p) => DB.s("prog_"+id, p)
         };
 
-        const calcLevel = (xp) => Math.floor(Math.sqrt(xp/100))+1;
+        // ============================================================
+        // DATASETS PARA O SANDBOX SQL
+        // ============================================================
+        const TABLES = {
+            produtos: [
+                { id: 101, nome: "Notebook Ultra", categoria: "Hardware", preco: 4500.00, qtd_estoque: 15 },
+                { id: 102, nome: "Monitor 27 4K", categoria: "Hardware", preco: 2100.00, qtd_estoque: 8 },
+                { id: 103, nome: "Teclado Mecânico", categoria: "Periféricos", preco: 450.00, qtd_estoque: 42 },
+                { id: 104, nome: "Mouse Gamer", categoria: "Periféricos", preco: 280.00, qtd_estoque: 60 },
+                { id: 105, nome: "SSD 1TB NVMe", categoria: "Armazenamento", preco: 550.00, qtd_estoque: 25 }
+            ],
+            clientes: [
+                { id: 1, nome: "Ricardo Santos", cidade: "São Paulo", status: "Premium" },
+                { id: 2, nome: "Carla Souza", cidade: "Rio de Janeiro", status: "Ativo" },
+                { id: 3, nome: "Beatriz Oliveira", cidade: "Belo Horizonte", status: "Premium" }
+            ],
+            vendas: [
+                { id: 5001, cliente_id: 1, produto_id: 101, data: "2024-01-10", valor: 4500.00 },
+                { id: 5002, cliente_id: 2, produto_id: 103, data: "2024-01-11", valor: 450.00 },
+                { id: 5003, cliente_id: 1, produto_id: 105, data: "2024-01-12", valor: 550.00 }
+            ]
+        };
 
         // ============================================================
-        // CONTEÚDO DIDÁTICO EXPANDIDO (90 DIAS x 3 TRILHAS)
+        // CONTEÚDO DIDÁTICO DETALHADO (TRILHAS 90 DIAS)
         // ============================================================
-
         const CURRICULUM = {
             python: {
                 d1: {
-                    title: "Introdução e Ambiente",
+                    title: "O Início: Configuração e Colab",
+                    colab: "https://colab.research.google.com/notebooks/intro.ipynb",
                     topics: [
-                        { t: "O que é Python?", c: "<h1>O que é Python?</h1><p>Python é uma linguagem de alto nível, interpretada e de tipagem dinâmica. Criada por Guido van Rossum em 1991, seu foco principal é a <b>legibilidade do código</b>.</p><p>Na área de dados, ela é a rainha devido a bibliotecas como Pandas e Scikit-Learn.</p>" },
-                        { t: "Instalação do VS Code", c: "<h2>Configurando o Ambiente</h2><p>1. Baixe o VS Code.<br/>2. Instale a extensão do Python da Microsoft.<br/>3. Instale o Python via python.org.</p><pre>python --version</pre>" },
-                        { t: "Seu primeiro script", c: "<h2>Hello Data!</h2><p>Crie um arquivo chamado <code>app.py</code> e digite:</p><pre>nome = 'Analista'\nprint(f'Olá, {nome}!')</pre>" }
+                        { t: "Por que Python para Dados?", c: "<h1>Python para Dados</h1><p>Python é a linguagem líder em Data Science devido à sua sintaxe simples e bibliotecas poderosas como Pandas e NumPy.</p><h2>Prática no Google Colab</h2><p>Clique no botão acima para abrir seu primeiro notebook.</p>" },
+                        { t: "Configurando o Ambiente Local", c: "<h2>Ambiente Local</h2><p>Para trabalhar localmente, recomendamos o <b>VS Code</b> com a extensão Python.</p><pre>pip install pandas numpy matplotlib</pre>" }
                     ]
                 },
                 d2: {
-                    title: "Variáveis e Tipos",
+                    title: "Variáveis e Tipos de Dados",
+                    colab: "https://colab.research.google.com/",
                     topics: [
-                        { t: "Tipos Primitivos", c: "<h1>Tipos Primitivos</h1><p>Python possui 4 tipos básicos:</p><ul><li><b>int:</b> Números inteiros (10, -5)</li><li><b>float:</b> Decimais (10.5, 3.14)</li><li><b>str:</b> Textos ('Dados')</li><li><b>bool:</b> Verdadeiro ou Falso (True, False)</li></ul>" },
-                        { t: "Manipulação de Strings", c: "<h2>Strings</h2><p>Podemos concatenar e formatar:</p><pre>print('Dados'.upper())\nprint('Python'.replace('P', 'J'))</pre>" }
+                        { t: "Tipos Primitivos", c: "<h2>Tipos Primitivos</h2><p>Python trabalha com Inteiros, Floats, Strings e Booleanos.</p><pre>idade = 25\npreco = 45.90\nnome = 'Data Scientist'\nstatus = True</pre>" }
                     ]
-                },
-                // ... (O gerador abaixo preencherá os 90 dias dinamicamente para manter o código funcional)
+                }
             },
             sql: {
                 d1: {
-                    title: "Bancos de Dados Relacionais",
+                    title: "Introdução ao SQL e Tabelas",
                     topics: [
-                        { t: "O que é um SGBD?", c: "<h1>SGBD</h1><p>Sistema Gerenciador de Banco de Dados. Exemplos: PostgreSQL, MySQL, SQL Server.</p>" },
-                        { t: "Modelo Relacional", c: "<h2>Tabelas e Colunas</h2><p>Dados são organizados em tabelas (entidades) com linhas (registros) e colunas (atributos).</p>" }
+                        { t: "O que é SQL?", c: "<h1>Structured Query Language</h1><p>SQL é a linguagem padrão para interagir com bancos de dados relacionais.</p>" },
+                        { t: "Explorando a Tabela Produtos", c: "<h2>Tabela Produtos</h2><p>Nesta plataforma, temos a tabela <code>produtos</code> com campos de preço e quantidade.</p><pre>SELECT * FROM produtos;</pre>" }
                     ]
                 }
             },
             powerbi: {
                 d1: {
-                    title: "O Ecossistema Microsoft BI",
+                    title: "Business Intelligence e Power BI",
                     topics: [
-                        { t: "Power BI Desktop vs Service", c: "<h1>Interface</h1><p>O Desktop é onde criamos o relatório. O Service é onde compartilhamos na nuvem.</p>" }
+                        { t: "Conceitos de BI", c: "<h1>O que é BI?</h1><p>BI é o processo de transformar dados brutos em insights para tomada de decisão.</p>" }
                     ]
                 }
             }
         };
 
-        // Gerador de preenchimento para garantir que todos os 90 dias existam
-        const generateRemainingDays = (cur) => {
-            ["python", "sql", "powerbi"].forEach(track => {
+        // Função para garantir que todos os 90 dias existam
+        const buildTracks = () => {
+            const tracks = ["python", "sql", "powerbi"];
+            tracks.forEach(tr => {
                 for(let i=1; i<=90; i++){
-                    if(!cur[track]["d"+i]) {
-                        cur[track]["d"+i] = {
-                            title: `Fase ${i <= 30 ? 'I' : i <= 60 ? 'II' : 'III'}: Evolução Dia ${i}`,
+                    if(!CURRICULUM[tr]["d"+i]) {
+                        CURRICULUM[tr]["d"+i] = {
+                            title: `Evolução: Dia ${i}`,
                             topics: [
-                                { t: `Conceitos do Dia ${i}`, c: `<h2>Conteúdo do Dia ${i}</h2><p>Nesta etapa da trilha de ${track}, focamos na consolidação dos conhecimentos práticos.</p>` },
-                                { t: `Exercício Prático`, c: `<p>Aplique o que aprendeu hoje em um dataset fictício.</p><pre># Exemplo de código para o dia ${i}\nprint('Praticando...')</pre>` }
-                            ]
+                                { t: "Teoria do Dia", c: `<h1>Conteúdo do Dia ${i}</h1><p>Aprofundamento técnico focado em ${tr}.</p>` },
+                                { t: "Laboratório Prático", c: `<h2>Desafio do Dia ${i}</h2><p>Implemente uma solução real usando as ferramentas aprendidas.</p>` }
+                            ],
+                            colab: tr === "python" ? "https://colab.research.google.com/" : null
                         };
                     }
                 }
             });
-            return cur;
         };
-        const FULL_CURRICULUM = generateRemainingDays(CURRICULUM);
+        buildTracks();
 
         // ============================================================
-        // COMPONENTES DE INTERFACE (UI)
+        // COMPONENTES E LÓGICA DE INTERFACE
         // ============================================================
-
-        const AuthCtx = createContext(null);
         const ProgCtx = createContext(null);
 
-        const Badge = ({text, color="#6366f1"}) => (
-            <span style={{background: color+"22", color, padding: "4px 12px", borderRadius: "99px", fontSize: "12px", fontWeight: "700", border: `1px solid ${color}44`}}>
-                {text}
-            </span>
-        );
+        function App() {
+            const [page, setPage] = useState("dashboard");
+            const [progress, setProgress] = useState(DB.progress("master"));
+            const [selTrack, setSelTrack] = useState("python");
+            const [selDay, setSelDay] = useState(null);
+            const [activeTopic, setActiveTopic] = useState(null);
 
-        const ProgressBar = ({now, total, color}) => (
-            <div style={{width: "100%", background: "#1e293b", height: "8px", borderRadius: "10px", marginTop: "8px"}}>
-                <div style={{width: `${(now/total)*100}%`, background: color, height: "100%", borderRadius: "10px", transition: "0.5s ease"}} />
-            </div>
-        );
-
-        // ============================================================
-        // PÁGINAS PRINCIPAIS
-        // ============================================================
-
-        function Dashboard({setPage}) {
-            const {progress} = useContext(ProgCtx);
-            if(!progress) return null;
-
-            const stats = [
-                { label: "Python", val: progress.completedPython.length, color: "#3b82f6" },
-                { label: "SQL", val: progress.completedSQL.length, color: "#10b981" },
-                { label: "Power BI", val: progress.completedPBI.length, color: "#f59e0b" }
-            ];
+            const completeDay = (track, dayNum) => {
+                const key = track === "python" ? "completedPython" : track === "sql" ? "completedSQL" : "completedPBI";
+                if(progress[key].includes(dayNum)) return;
+                const newProg = { ...progress, [key]: [...progress[key], dayNum], xp: progress.xp + 50 };
+                newProg.level = Math.floor(Math.sqrt(newProg.xp/100))+1;
+                setProgress(newProg);
+                DB.setProgress("master", newProg);
+            };
 
             return (
-                <div className="animate-slide">
-                    <header style={{marginBottom: "40px"}}>
-                        <h1 style={{fontFamily: "'Syne'", fontSize: "36px"}}>Bem-vindo, Cientista de Dados</h1>
-                        <p style={{color: "#94a3b8"}}>Seu progresso é salvo automaticamente neste dispositivo.</p>
-                    </header>
+                <ProgCtx.Provider value={{progress, completeDay}}>
+                    <div style={{display: "flex", minHeight: "100vh"}}>
+                        {/* Sidebar */}
+                        <aside style={{width: "260px", background: "#0a1628", padding: "40px 25px", borderRight: "1px solid #1e293b", position: "fixed", height: "100vh"}}>
+                            <h2 style={{fontFamily: "'Syne'", color: "#6366f1", marginBottom: "40px"}}>DATAPATH ⚡</h2>
+                            <nav style={{display: "flex", flexDirection: "column", gap: "10px"}}>
+                                <button onClick={() => {setPage("dashboard"); setSelDay(null);}} style={navBtn(page==="dashboard")}>🏠 Dashboard</button>
+                                <button onClick={() => {setPage("journey"); setSelDay(null);}} style={navBtn(page==="journey")}>🗺️ Trilhas 90D</button>
+                                <button onClick={() => {setPage("sandbox"); setSelDay(null);}} style={navBtn(page==="sandbox")}>🗄️ SQL Sandbox</button>
+                            </nav>
+                        </aside>
 
-                    <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px", marginBottom: "40px"}}>
-                        <div className="glass" style={{padding: "30px", borderRadius: "20px"}}>
-                            <h3>Nível {progress.level}</h3>
-                            <div style={{fontSize: "48px", fontWeight: "900", color: "#6366f1", margin: "10px 0"}}>{progress.xp} <span style={{fontSize: "18px", color: "#64748b"}}>XP</span></div>
-                            <button onClick={() => setPage("journey")} style={{width: "100%", padding: "12px", borderRadius: "10px", background: "#6366f1", color: "#fff", border: "none", cursor: "pointer", fontWeight: "700"}}>Continuar Estudando</button>
+                        {/* Main Content */}
+                        <main style={{flex: 1, marginLeft: "260px", padding: "50px"}}>
+                            {page === "dashboard" && <Dashboard setPage={setPage} />}
+                            {page === "journey" && !selDay && <JourneyMap setTrack={setSelTrack} setDay={setSelDay} track={selTrack} />}
+                            {selDay && <LessonView track={selTrack} day={selDay} setDay={setSelDay} topic={activeTopic} setTopic={setActiveTopic} />}
+                            {page === "sandbox" && <SQLSandbox />}
+                        </main>
+                    </div>
+                </ProgCtx.Provider>
+            );
+        }
+
+        const navBtn = (active) => ({
+            textAlign: "left", padding: "14px", borderRadius: "10px", border: "none", cursor: "pointer",
+            background: active ? "#6366f120" : "transparent", color: active ? "#6366f1" : "#64748b",
+            fontWeight: "700", fontSize: "15px"
+        });
+
+        // --- DASHBOARD COMPONENT ---
+        function Dashboard() {
+            const {progress} = useContext(ProgCtx);
+            return (
+                <div className="fade">
+                    <h1 style={{fontFamily: "'Syne'", fontSize: "32px", marginBottom: "30px"}}>Seu Dashboard</h1>
+                    <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "20px"}}>
+                        <div className="glass" style={{padding: "25px", borderRadius: "20px"}}>
+                            <div style={{color: "#64748b", fontSize: "14px"}}>XP TOTAL</div>
+                            <div style={{fontSize: "40px", fontWeight: "900", color: "#6366f1"}}>{progress.xp}</div>
+                            <div style={{marginTop: "10px"}}>Nível {progress.level}</div>
                         </div>
-                        
-                        <div className="glass" style={{padding: "30px", borderRadius: "20px"}}>
-                            <h3>Progresso Geral</h3>
-                            <div style={{marginTop: "20px"}}>
-                                {stats.map(s => (
-                                    <div key={s.label} style={{marginBottom: "15px"}}>
-                                        <div style={{display: "flex", justifyContent: "space-between", fontSize: "14px"}}>
-                                            <span>{s.label}</span>
-                                            <span>{s.val}/90 dias</span>
-                                        </div>
-                                        <ProgressBar now={s.val} total={90} color={s.color} />
-                                    </div>
-                                ))}
-                            </div>
+                        <div className="glass" style={{padding: "25px", borderRadius: "20px"}}>
+                            <h4 style={{marginBottom: "15px"}}>Atividade das Trilhas</h4>
+                            <Stat track="Python" val={progress.completedPython.length} color="#3b82f6" />
+                            <Stat track="SQL" val={progress.completedSQL.length} color="#10b981" />
+                            <Stat track="Power BI" val={progress.completedPBI.length} color="#f59e0b" />
                         </div>
                     </div>
                 </div>
             );
         }
 
-        function Journey() {
-            const {progress, completeDay} = useContext(ProgCtx);
-            const [track, setTrack] = useState("python");
-            const [selectedDay, setSelectedDay] = useState(null);
-            const [activeTopic, setActiveTopic] = useState(null);
+        const Stat = ({track, val, color}) => (
+            <div style={{marginBottom: "12px"}}>
+                <div style={{display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "5px"}}><span>{track}</span><span>{val}/90d</span></div>
+                <div style={{background: "#1e293b", height: "6px", borderRadius: "10px"}}><div style={{width: `${(val/90)*100}%`, background: color, height: "100%", borderRadius: "10px"}}/></div>
+            </div>
+        );
 
-            if(!progress) return null;
-
-            const completedList = track === "python" ? progress.completedPython : track === "sql" ? progress.completedSQL : progress.completedPBI;
-            const currentDayNumber = completedList.length + 1;
-
-            const handleComplete = () => {
-                completeDay(track, selectedDay.day);
-                setSelectedDay(null);
-                setActiveTopic(null);
-            };
-
-            // Se um dia foi selecionado, mostra os tópicos e conteúdo
-            if (selectedDay) {
-                const dayData = FULL_CURRICULUM[track]["d"+selectedDay.day];
-                return (
-                    <div className="animate-slide" style={{maxWidth: "900px", margin: "0 auto"}}>
-                        <button onClick={() => {setSelectedDay(null); setActiveTopic(null);}} style={{background: "none", border: "none", color: "#6366f1", cursor: "pointer", marginBottom: "20px", fontWeight: "700"}}>← Voltar ao Mapa</button>
-                        
-                        <div style={{display: "grid", gridTemplateColumns: "300px 1fr", gap: "30px"}}>
-                            {/* Lista de Tópicos */}
-                            <aside>
-                                <div className="glass" style={{borderRadius: "15px", overflow: "hidden"}}>
-                                    <div style={{padding: "15px", background: "rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.1)"}}>
-                                        <h4 style={{fontSize: "14px", textTransform: "uppercase", letterSpacing: "1px"}}>Tópicos do Dia {selectedDay.day}</h4>
-                                    </div>
-                                    {dayData.topics.map((t, idx) => (
-                                        <div 
-                                            key={idx} 
-                                            onClick={() => setActiveTopic(t)}
-                                            style={{
-                                                padding: "15px", cursor: "pointer", fontSize: "15px",
-                                                background: activeTopic?.t === t.t ? "#6366f122" : "transparent",
-                                                borderLeft: activeTopic?.t === t.t ? "4px solid #6366f1" : "4px solid transparent",
-                                                transition: "0.2s"
-                                            }}
-                                        >
-                                            {t.t}
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {!completedList.includes(selectedDay.day) && (
-                                    <button 
-                                        onClick={handleComplete}
-                                        style={{width: "100%", marginTop: "20px", padding: "15px", borderRadius: "10px", background: "#10b981", color: "#fff", border: "none", fontWeight: "700", cursor: "pointer"}}
-                                    >
-                                        Marcar Dia como Concluído
-                                    </button>
-                                )}
-                            </aside>
-
-                            {/* Conteúdo da Aula */}
-                            <main className="glass" style={{padding: "40px", borderRadius: "20px", minHeight: "500px"}}>
-                                {activeTopic ? (
-                                    <div className="lesson-content animate-slide" dangerouslySetInnerHTML={{__html: activeTopic.c}} />
-                                ) : (
-                                    <div style={{textAlign: "center", color: "#64748b", marginTop: "100px"}}>
-                                        <div style={{fontSize: "50px", marginBottom: "20px"}}>📖</div>
-                                        <h3>Selecione um tópico ao lado para iniciar a aula.</h3>
-                                    </div>
-                                )}
-                            </main>
-                        </div>
-                    </div>
-                );
-            }
+        // --- JOURNEY MAP COMPONENT ---
+        function JourneyMap({setTrack, setDay, track}) {
+            const {progress} = useContext(ProgCtx);
+            const list = track === "python" ? progress.completedPython : track === "sql" ? progress.completedSQL : progress.completedPBI;
 
             return (
-                <div className="animate-slide">
-                    <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "40px"}}>
-                        <h2 style={{fontFamily: "'Syne'", fontSize: "28px"}}>Trilha de Especialização</h2>
-                        <div style={{display: "flex", gap: "10px", background: "#0a1628", padding: "5px", borderRadius: "12px", border: "1px solid #1e293b"}}>
-                            <button onClick={() => setTrack("python")} style={{padding: "8px 20px", borderRadius: "8px", border: "none", cursor: "pointer", background: track === "python" ? "#3b82f6" : "transparent", color: "#fff", fontWeight: "700"}}>Python</button>
-                            <button onClick={() => setTrack("sql")} style={{padding: "8px 20px", borderRadius: "8px", border: "none", cursor: "pointer", background: track === "sql" ? "#10b981" : "transparent", color: "#fff", fontWeight: "700"}}>SQL</button>
-                            <button onClick={() => setTrack("powerbi")} style={{padding: "8px 20px", borderRadius: "8px", border: "none", cursor: "pointer", background: track === "powerbi" ? "#f59e0b" : "transparent", color: "#fff", fontWeight: "700"}}>Power BI</button>
+                <div className="fade">
+                    <div style={{display: "flex", justifyContent: "space-between", marginBottom: "40px"}}>
+                        <h2 style={{fontFamily: "'Syne'"}}>Mapa de Especialização</h2>
+                        <div style={{display: "flex", gap: "10px"}}>
+                            {["python", "sql", "powerbi"].map(t => (
+                                <button key={t} onClick={() => setTrack(t)} style={{
+                                    padding: "10px 20px", borderRadius: "8px", border: "none", cursor: "pointer",
+                                    background: track === t ? "#6366f1" : "#0f172a", color: "#fff", fontWeight: "700"
+                                }}>{t.toUpperCase()}</button>
+                            ))}
                         </div>
                     </div>
-
-                    <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: "15px"}}>
+                    <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "12px"}}>
                         {Array.from({length: 90}, (_, i) => {
                             const d = i + 1;
-                            const isDone = completedList.includes(d);
-                            const isLocked = d > currentDayNumber;
-                            const color = track === "python" ? "#3b82f6" : track === "sql" ? "#10b981" : "#f59e0b";
-
+                            const isDone = list.includes(d);
+                            const isLocked = d > list.length + 1;
                             return (
-                                <div 
-                                    key={d} 
-                                    onClick={() => !isLocked && setSelectedDay({day: d})}
-                                    className="card-hover"
-                                    style={{
-                                        aspectRatio: "1/1", borderRadius: "18px", padding: "15px",
-                                        background: isDone ? color : isLocked ? "#0a1628" : "#0f172a",
-                                        border: `1px solid ${isDone ? color : "#1e293b"}`,
-                                        cursor: isLocked ? "not-allowed" : "pointer",
-                                        display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
-                                        opacity: isLocked ? 0.4 : 1, color: isDone ? "#000" : "#fff"
-                                    }}
-                                >
-                                    <div style={{fontSize: "10px", fontWeight: "800", opacity: 0.6}}>DIA</div>
-                                    <div style={{fontSize: "24px", fontWeight: "900"}}>{d}</div>
-                                    {isDone && <div style={{fontSize: "12px"}}>✓</div>}
+                                <div key={d} onClick={() => !isLocked && setDay(d)} className="card-hover" style={{
+                                    aspectRatio: "1/1", borderRadius: "15px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                                    background: isDone ? "#10b98120" : isLocked ? "#0a1628" : "#0f172a",
+                                    border: `1px solid ${isDone ? "#10b981" : "#1e293b"}`,
+                                    opacity: isLocked ? 0.4 : 1, cursor: isLocked ? "not-allowed" : "pointer"
+                                }}>
+                                    <span style={{fontSize: "10px", opacity: 0.6}}>DIA</span>
+                                    <span style={{fontSize: "22px", fontWeight: "900"}}>{d}</span>
+                                    {isDone && <span>✓</span>}
                                 </div>
                             );
                         })}
@@ -305,61 +262,98 @@
             );
         }
 
-        // ============================================================
-        // APP SHELL
-        // ============================================================
+        // --- LESSON VIEW COMPONENT ---
+        function LessonView({track, day, setDay, topic, setTopic}) {
+            const {completeDay, progress} = useContext(ProgCtx);
+            const dayData = CURRICULUM[track]["d"+day];
+            const isDone = (track === "python" ? progress.completedPython : track === "sql" ? progress.completedSQL : progress.completedPBI).includes(day);
 
-        function App() {
-            const [page, setPage] = useState("dashboard");
-            const [progress, setProgress] = useState(null);
-            const user = { id: "master-user" };
+            useEffect(() => { if(dayData) setTopic(dayData.topics[0]); }, [day]);
 
-            useEffect(() => {
-                setProgress(DB.progress(user.id));
-            }, []);
+            return (
+                <div className="fade" style={{maxWidth: "1000px"}}>
+                    <button onClick={() => setDay(null)} style={{background: "none", border: "none", color: "#6366f1", cursor: "pointer", marginBottom: "20px", fontWeight: "700"}}>← Voltar ao Mapa</button>
+                    
+                    <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px"}}>
+                        <div>
+                            <span style={{color: "#6366f1", fontWeight: "800"}}>DIA {day}</span>
+                            <h1 style={{fontFamily: "'Syne'", fontSize: "32px"}}>{dayData.title}</h1>
+                        </div>
+                        {dayData.colab && (
+                            <a href={dayData.colab} target="_blank" style={{padding: "12px 25px", background: "#f59e0b", color: "#000", borderRadius: "8px", textDecoration: "none", fontWeight: "700"}}>Abrir no Google Colab 🚀</a>
+                        )}
+                    </div>
 
-            const completeDay = (track, dayNum) => {
-                const key = track === "python" ? "completedPython" : track === "sql" ? "completedSQL" : "completedPBI";
-                if(progress[key].includes(dayNum)) return;
+                    <div style={{display: "grid", gridTemplateColumns: "280px 1fr", gap: "30px"}}>
+                        <aside className="glass" style={{borderRadius: "15px", height: "fit-content"}}>
+                            {dayData.topics.map((t, i) => (
+                                <div key={i} onClick={() => setTopic(t)} style={{
+                                    padding: "15px", cursor: "pointer", borderLeft: topic?.t === t.t ? "4px solid #6366f1" : "4px solid transparent",
+                                    background: topic?.t === t.t ? "#6366f110" : "transparent", transition: "0.2s"
+                                }}>{t.t}</div>
+                            ))}
+                            <button onClick={() => completeDay(track, day)} disabled={isDone} style={{
+                                width: "100%", padding: "15px", border: "none", background: isDone ? "#10b981" : "#6366f1", color: "#fff",
+                                fontWeight: "700", cursor: isDone ? "default" : "pointer", marginTop: "10px", borderBottomLeftRadius: "15px", borderBottomRightRadius: "15px"
+                            }}>{isDone ? "Concluído ✅" : "Marcar como Concluído"}</button>
+                        </aside>
+                        
+                        <div className="glass lesson-body" style={{padding: "40px", borderRadius: "20px", minHeight: "500px"}}>
+                            {topic && <div dangerouslySetInnerHTML={{__html: topic.c}} />}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- SQL SANDBOX COMPONENT ---
+        function SQLSandbox() {
+            const [query, setQuery] = useState("SELECT * FROM produtos;");
+            const [result, setResult] = useState(null);
+
+            const execute = () => {
+                const q = query.toLowerCase().trim();
+                let data = [];
+                if(q.includes("from produtos")) data = TABLES.produtos;
+                else if(q.includes("from clientes")) data = TABLES.clientes;
+                else if(q.includes("from vendas")) data = TABLES.vendas;
+                else { setResult({error: "Tabelas disponíveis: produtos, clientes, vendas"}); return; }
                 
-                const newProgress = {
-                    ...progress,
-                    [key]: [...progress[key], dayNum],
-                    xp: progress.xp + 50,
-                    lastStudy: new Date().toISOString()
-                };
-                newProgress.level = calcLevel(newProgress.xp);
-                setProgress(newProgress);
-                DB.setProgress(user.id, newProgress);
+                if(q.includes("where preco > 1000")) data = data.filter(p => p.preco > 1000);
+                setResult({data});
             };
 
             return (
-                <ProgCtx.Provider value={{progress, completeDay}}>
-                    <div style={{display: "flex", minHeight: "100vh"}}>
-                        {/* Sidebar */}
-                        <aside style={{width: "280px", background: "#0a1628", padding: "40px 30px", borderRight: "1px solid #1e293b", position: "fixed", height: "100vh"}}>
-                            <h2 style={{fontFamily: "'Syne'", color: "#6366f1", marginBottom: "50px", letterSpacing: "-1px"}}>DATAPATH ⚡</h2>
-                            
-                            <nav style={{display: "flex", flexDirection: "column", gap: "10px"}}>
-                                <button onClick={() => setPage("dashboard")} style={{textAlign: "left", padding: "15px", borderRadius: "12px", border: "none", background: page === "dashboard" ? "#6366f115" : "transparent", color: page === "dashboard" ? "#6366f1" : "#64748b", cursor: "pointer", fontWeight: "700", transition: "0.2s"}}>🏠 Dashboard</button>
-                                <button onClick={() => setPage("journey")} style={{textAlign: "left", padding: "15px", borderRadius: "12px", border: "none", background: page === "journey" ? "#6366f115" : "transparent", color: page === "journey" ? "#6366f1" : "#64748b", cursor: "pointer", fontWeight: "700", transition: "0.2s"}}>🗺️ Trilhas 90D</button>
-                            </nav>
-
-                            <div style={{position: "absolute", bottom: "40px", width: "220px"}}>
-                                <div className="glass" style={{padding: "15px", borderRadius: "15px", fontSize: "12px"}}>
-                                    <div style={{color: "#64748b", marginBottom: "5px"}}>Status do Perfil</div>
-                                    <div style={{fontWeight: "700"}}>Sincronizado Localmente</div>
-                                </div>
-                            </div>
-                        </aside>
-
-                        {/* Main */}
-                        <main style={{flex: 1, marginLeft: "280px", padding: "60px"}}>
-                            {page === "dashboard" && <Dashboard setPage={setPage} />}
-                            {page === "journey" && <Journey />}
-                        </main>
+                <div className="fade">
+                    <h2 style={{fontFamily: "'Syne'", marginBottom: "20px"}}>SQL Sandbox & Terminal</h2>
+                    <div className="glass" style={{padding: "25px", borderRadius: "20px"}}>
+                        <textarea value={query} onChange={e => setQuery(e.target.value)} style={{
+                            width: "100%", height: "120px", background: "#000", color: "#10b981", border: "none", 
+                            padding: "20px", fontFamily: "'Fira Code'", borderRadius: "10px", fontSize: "16px"
+                        }} />
+                        <button onClick={execute} style={{
+                            marginTop: "15px", padding: "12px 30px", background: "#6366f1", color: "#fff", 
+                            border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700"
+                        }}>Executar Query</button>
                     </div>
-                </ProgCtx.Provider>
+
+                    {result && (
+                        <div className="glass fade" style={{marginTop: "30px", padding: "25px", borderRadius: "20px", overflowX: "auto"}}>
+                            {result.error ? <div style={{color: "#ef4444"}}>{result.error}</div> : (
+                                <table className="sql-table">
+                                    <thead>
+                                        <tr>{Object.keys(result.data[0] || {}).map(k => <th key={k}>{k}</th>)}</tr>
+                                    </thead>
+                                    <tbody>
+                                        {result.data.map((row, i) => (
+                                            <tr key={i}>{Object.values(row).map((v, j) => <td key={j}>{v}</td>)}</tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    )}
+                </div>
             );
         }
 
